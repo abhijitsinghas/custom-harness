@@ -1,0 +1,49 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "The Little Library",
+  "@appTitle": {
+    "description": "Application title shown in the app bar and system settings."
+  },
+
+  "navCatalog": "Catalog",
+  "navAddBook": "Add Book",
+  "navScanner": "Scanner",
+  "navLocations": "Locations",
+  "navActiveLoans": "Active Loans",
+  "navActivity": "Activity",
+  "navDeletedBooks": "Deleted Books",
+  "navSettings": "Settings",
+  "navExport": "Export",
+  "navShareLibrary": "Share Library",
+
+  "actionSave": "Save",
+  "actionCancel": "Cancel",
+  "actionDelete": "Delete",
+  "actionEdit": "Edit",
+  "actionRestore": "Restore",
+  "actionSearch": "Search",
+  "actionClose": "Close",
+  "actionConfirm": "Confirm",
+  "actionRetry": "Retry",
+  "actionDone": "Done",
+
+  "syncStatusSynced": "Synced just now",
+  "syncStatusPending": "Offline — {count} pending",
+  "@syncStatusPending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncStatusError": "Sync error — tap for details",
+
+  "errorGeneric": "Something went wrong. Please try again.",
+  "errorOffline": "You are offline. Changes will sync when connected.",
+  "errorNotFound": "Not found.",
+
+  "loadingLabel": "Loading…",
+  "emptyStateLabel": "Nothing here yet.",
+  "noResultsLabel": "No results found."
+}
