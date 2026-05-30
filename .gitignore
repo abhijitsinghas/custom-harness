@@ -1,37 +1,14 @@
-# Flutter / Dart
-**/doc/api/
-.dart_tool/
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-build/
-coverage/
-
-# Generated files (run build_runner to regenerate)
-*.g.dart
-*.freezed.dart
-
-# IDE
-.idea/
-.vscode/
-*.iml
-*.swp
-.DS_Store
-
-# Android Studio
-/android/app/debug
-/android/app/profile
-/android/app/release
-
-# iOS
-**/ios/Flutter/.last_build_id
-app.*.symbols
-app.*.map.json
-
-# Other
-*.class
-*.log
-*.pyc
-.packages
-.pub/
-build/
+.pi/npm/
+the_little_library_app/.dart_tool/
+the_little_library_app/build/
+the_little_library_app/.packages
+the_little_library_app/.flutter-plugins
+the_little_library_app/.flutter-plugins-dependencies
+cost-analysis/
+.pi/npm/
+cost-analysis/
+.pi/npm/
+cost-analysis/
+the_little_library_app/.dart_tool/
+the_little_library_app/build/
+the_little_library_app/.packages

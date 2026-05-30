@@ -1,9 +1,22 @@
 # AGENTS.md — The Little Library v2
 
 > **Flutter Android app** for cataloging a home library (~10–12 cupboards/bookshelves).
-> Spec: `docs/spec-v2.md` | Plan: `docs/implementation-plan.md` | Mockups: `docs/The-Little-Library---Proto-2/`
-> **App code lives in:** `the_little_library_app/` — Flutter project subdirectory of this workspace
 > **Package:** `com.abhijits.thelittlelibrary`
+
+## Project Paths
+
+Paths referenced by agents. Override these for different projects.
+
+| Path | Value |
+|------|-------|
+| Spec | `docs/spec-v2.md` |
+| Mockups | `docs/The-Little-Library---Proto-2/` |
+| App directory | `the_little_library_app/` |
+| Integration tests | `integration_test/` |
+| Plan output | `specs/plan.md` |
+| Review output | `specs/review.md` |
+| Package name | `com.abhijits.thelittlelibrary` |
+| Review output | `specs/review.md` |
 
 ## Pipeline Configuration
 

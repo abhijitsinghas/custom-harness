@@ -1,74 +1,82 @@
+/// Extension utilities for ISBN conversion, date formatting, and
+/// string normalization. US-0.1.6, US-0.1.13, US-0.1.15.
+library;
+
 import 'package:intl/intl.dart';
 
-// ── String ───────────────────────────────────────────────────────────────────
+/// ISBN-10 ↔ ISBN-13 conversion and validation.
+extension IsbnExtension on String {
+  /// Converts an ISBN-10 to ISBN-13, or returns the input unchanged if
+  /// it is already a valid ISBN-13. Returns `null` for invalid input.
+  String? toIsbn13() {
+    final cleaned = _cleanIsbn(this);
+    if (cleaned == null) return null;
 
-/// Convenience extensions on [String].
-extension StringHelpers on String {
-  /// Returns `true` when the trimmed string is empty.
-  bool get isBlank => trim().isEmpty;
-
-  /// Returns `true` when the trimmed string is **not** empty.
-  bool get isNotBlank => !isBlank;
-
-  /// Capitalises the first character of this string.
-  String get capitalised =>
-      isBlank ? this : '${this[0].toUpperCase()}${substring(1)}';
-
-  /// Title-cases every word in this string.
-  String get titleCase =>
-      split(RegExp(r'\s+')).map((w) => w.capitalised).join(' ');
-
-  /// Strips common ISBN prefix/suffix noise (e.g. "ISBN-13:", spaces, dashes).
-  String get normalisedIsbn =>
-      replaceAll(RegExp(r'[^\dX]'), '').toUpperCase();
-}
-
-// ── DateTime ─────────────────────────────────────────────────────────────────
-
-/// Human-readable formatting helpers for [DateTime].
-extension DateTimeFormatting on DateTime {
-  static final DateFormat _dayMonthYear = DateFormat('d MMM yyyy');
-  static final DateFormat _full = DateFormat('d MMM yyyy, h:mm a');
-  static final DateFormat _relativeToday = DateFormat("'Today at' h:mm a");
-  static final DateFormat _relativeYesterday =
-      DateFormat("'Yesterday at' h:mm a");
-
-  /// Formats as "12 Jan 2026".
-  String get dayMonthYear => _dayMonthYear.format(this);
-
-  /// Formats as "12 Jan 2026, 3:45 PM".
-  String get full => _full.format(this);
-
-  /// Relative formatting for recent dates, e.g. "Today at 3:45 PM".
-  String get friendly {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final dateOnly = DateTime(year, month, day);
-
-    if (dateOnly == today) return _relativeToday.format(this);
-    if (dateOnly == today.subtract(const Duration(days: 1))) {
-      return _relativeYesterday.format(this);
+    if (cleaned.length == 13) {
+      return _formatIsbn13(cleaned);
     }
-    return dayMonthYear;
+    if (cleaned.length == 10) {
+      return _convertIsbn10to13(cleaned);
+    }
+    return null;
+  }
+
+  /// Strips hyphens, spaces, and whitespace; returns null if the result
+  /// is not numeric or has wrong length.
+  static String? _cleanIsbn(String raw) {
+    final digits = raw.replaceAll(RegExp(r'[\s-]'), '');
+    if (digits.isEmpty) return null;
+    if (!RegExp(r'^\d{9}[\dXx]$').hasMatch(digits) &&
+        !RegExp(r'^\d{13}$').hasMatch(digits)) {
+      return null;
+    }
+    return digits.toUpperCase();
+  }
+
+  /// Converts a 10-digit cleaned ISBN to the 13-digit format.
+  static String? _convertIsbn10to13(String isbn10) {
+    final prefix = '978$isbn10'; // 13 digits without check
+    final withoutCheck = prefix.substring(0, 12);
+    final checkDigit = _calculateIsbn13CheckDigit(withoutCheck);
+    return _formatIsbn13('$withoutCheck$checkDigit');
+  }
+
+  /// Computes the ISBN-13 check digit.
+  static int _calculateIsbn13CheckDigit(String digits12) {
+    var sum = 0;
+    for (var i = 0; i < 12; i++) {
+      final digit = int.parse(digits12[i]);
+      sum += digit * (i.isEven ? 1 : 3);
+    }
+    final mod = sum % 10;
+    return mod == 0 ? 0 : 10 - mod;
+  }
+
+  /// Formats a 13-digit string with hyphens.
+  static String _formatIsbn13(String digits) {
+    return '${digits.substring(0, 3)}-${digits.substring(3, 4)}-${digits.substring(4, 7)}-${digits.substring(7, 12)}-${digits.substring(12)}';
   }
 }
 
-// ── ISBN ─────────────────────────────────────────────────────────────────────
+/// String normalization for author deduplication.
+/// Lowercases and strips spaces and punctuation.
+extension StringNormalization on String {
+  /// Returns a normalized version: lowercased with spaces and punctuation removed.
+  String normalize() {
+    return toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+  }
+}
 
-/// ISBN utility extensions.
-///
-/// Full ISBN-10 → ISBN-13 conversion lives in `lib/core/utils/isbn_utils.dart`
-/// (W03). Here we expose lightweight normalisation helpers.
-abstract final class IsbnNormalizer {
-  IsbnNormalizer._();
-
-  /// Removes hyphens, spaces, and ISBN prefix labels, returning a pure digit
-  /// string (or digit + 'X' for ISBN-10 checksum).
-  static String normalise(String raw) => raw.normalisedIsbn;
-
-  /// Returns `true` when [raw] normalises to exactly 10 characters (ISBN-10).
-  static bool isIsbn10(String raw) => normalise(raw).length == 10;
-
-  /// Returns `true` when [raw] normalises to exactly 13 characters (ISBN-13).
-  static bool isIsbn13(String raw) => normalise(raw).length == 13;
+/// Date formatting helpers (US-0.1.6, US-0.1.15).
+extension DateFormatting on DateTime? {
+  /// Formats to a localized date string. Returns '—' for null.
+  String formatDate({String locale = 'en_US', String pattern = 'MMM d, yyyy'}) {
+    final date = this;
+    if (date == null) return '—';
+    try {
+      return DateFormat(pattern, locale).format(date);
+    } on Exception {
+      return '—';
+    }
+  }
 }

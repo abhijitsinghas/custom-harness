@@ -5,12 +5,9 @@ import 'app.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // TODO(W02): Initialise drift AppDatabase and override databaseProvider.
-
   runApp(
     const ProviderScope(
-      child: TheLittleLibraryApp(),
+      child: LittleLibraryApp(),
     ),
   );
 }

@@ -1,4 +1,4 @@
-# the_little_library_app
+# thelittlelibrary
 
 A new Flutter project.
 

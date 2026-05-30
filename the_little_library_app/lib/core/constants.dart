@@ -1,91 +1,112 @@
-// ── Enums ────────────────────────────────────────────────────────────────────
+/// Enums and predefined constants used throughout the app.
+/// US-0.1.5, US-0.2.23
+library;
 
-/// Status of a book within the library.
-enum BookStatus {
-  /// Book is on its assigned shelf and available.
-  available,
-
-  /// Book is checked out to a family member (internal).
-  checkedOut,
-
-  /// Book is loaned to an external person.
-  loaned,
-}
-
-/// Physical or digital format of a book.
+/// Physical format of a book.
 enum BookFormat {
   hardcover,
   paperback,
-  ebook,
-  audiobook,
+  other,
 }
 
-/// Subjective condition rating for a book copy.
+/// Physical condition assessment of a book.
 enum BookCondition {
-  new_,
+  newCondition,
   likeNew,
-  veryGood,
-  good,
-  fair,
-  poor,
+  used,
+  worn,
+  damaged,
 }
 
-// ── Spacing ──────────────────────────────────────────────────────────────────
-
-/// Semantic spacing scale used throughout the UI.
-abstract final class AppSpacing {
-  AppSpacing._();
-
-  static const double xxs = 4;
-  static const double xs = 8;
-  static const double sm = 12;
-  static const double md = 16;
-  static const double lg = 24;
-  static const double xl = 32;
-  static const double xxl = 48;
-
-  /// Minimum touch-target size (WCAG AA).
-  static const double tappableMin = 48;
+/// Availability status of a book in the library.
+enum BookStatus {
+  available,
+  checkedOut,
+  loaned,
 }
 
-// ── Responsive breakpoints ───────────────────────────────────────────────────
-
-abstract final class Breakpoints {
-  Breakpoints._();
-
-  /// Width at which the layout switches from compact to expanded.
-  static const double largeScreenMin = 600;
+/// Type of change recorded in the change log.
+enum EventType {
+  create,
+  update,
+  delete,
 }
 
-// ── Seed data ────────────────────────────────────────────────────────────────
+/// Domain entity type for change log tracking.
+enum EntityType {
+  book,
+  location,
+  genre,
+  tag,
+  author,
+  loan,
+  language,
+}
 
-/// Twenty predefined genres seeded into every new library.
-const List<String> predefinedGenres = [
+/// 20 predefined genres seeded on first launch (US-0.1.5).
+const List<String> kPredefinedGenres = [
   'Fiction',
   'Non-Fiction',
-  'Mystery',
-  'Science Fiction',
-  'Fantasy',
-  'Romance',
-  'Thriller',
-  'Horror',
-  'Biography',
-  'History',
   'Science',
-  'Philosophy',
+  'Technology',
+  'History',
+  'Biography & Memoir',
   'Poetry',
-  'Drama',
-  'Children',
-  'Young Adult',
-  'Graphic Novel',
+  'Religion & Spirituality',
+  'Philosophy',
   'Self-Help',
+  'Business & Economics',
+  'Art & Photography',
+  'Cooking',
   'Travel',
-  'Cookbook',
+  'Health & Wellness',
+  'Comics & Graphic Novels',
+  "Children's",
+  'Young Adult',
+  'Reference',
+  'Textbooks',
 ];
 
-/// Three built-in languages seeded on first launch.
-const List<String> predefinedLanguages = [
-  'English',
-  'Hindi',
-  'Marathi',
+/// 3 built-in languages seeded on first launch (US-0.1.5).
+const List<Map<String, String>> kBuiltinLanguages = [
+  {'name': 'English', 'isoCode': 'en'},
+  {'name': 'Hindi', 'isoCode': 'hi'},
+  {'name': 'Sanskrit', 'isoCode': 'sa'},
 ];
+
+/// Human-readable display names for enum values (US-0.2.23).
+const Map<BookFormat, String> kBookFormatDisplayNames = {
+  BookFormat.hardcover: 'Hardcover',
+  BookFormat.paperback: 'Paperback',
+  BookFormat.other: 'Other',
+};
+
+const Map<BookCondition, String> kBookConditionDisplayNames = {
+  BookCondition.newCondition: 'New',
+  BookCondition.likeNew: 'Like New',
+  BookCondition.used: 'Used',
+  BookCondition.worn: 'Worn',
+  BookCondition.damaged: 'Damaged',
+};
+
+const Map<BookStatus, String> kBookStatusDisplayNames = {
+  BookStatus.available: 'Available',
+  BookStatus.checkedOut: 'Checked Out',
+  BookStatus.loaned: 'Loaned',
+};
+
+const Map<EventType, String> kEventTypeDisplayNames = {
+  EventType.create: 'Created',
+  EventType.update: 'Updated',
+  EventType.delete: 'Deleted',
+};
+
+const Map<EntityType, String> kEntityTypeDisplayNames = {
+  EntityType.book: 'Book',
+  EntityType.location: 'Location',
+  EntityType.genre: 'Genre',
+  EntityType.tag: 'Tag',
+  EntityType.author: 'Author',
+  EntityType.loan: 'Loan',
+  EntityType.language: 'Language',
+};

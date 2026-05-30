@@ -12,92 +12,101 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appTitle => 'The Little Library';
 
   @override
-  String get navCatalog => 'Catalog';
+  String get appTitleShort => 'Little Library';
 
   @override
-  String get navAddBook => 'Add Book';
+  String get catalogTitle => 'Library';
 
   @override
-  String get navScanner => 'Scanner';
+  String get addBook => 'Add Book';
 
   @override
-  String get navLocations => 'Locations';
+  String get editBook => 'Edit Book';
 
   @override
-  String get navActiveLoans => 'Active Loans';
+  String get deleteBook => 'Delete Book';
 
   @override
-  String get navActivity => 'Activity';
+  String get save => 'Save';
 
   @override
-  String get navDeletedBooks => 'Deleted Books';
+  String get cancel => 'Cancel';
 
   @override
-  String get navSettings => 'Settings';
+  String get confirm => 'Confirm';
 
   @override
-  String get navExport => 'Export';
+  String get search => 'Search';
 
   @override
-  String get navShareLibrary => 'Share Library';
+  String get noResults => 'No results found';
 
   @override
-  String get actionSave => 'Save';
+  String get loading => 'Loading...';
 
   @override
-  String get actionCancel => 'Cancel';
+  String get error => 'Error';
 
   @override
-  String get actionDelete => 'Delete';
+  String get retry => 'Retry';
 
   @override
-  String get actionEdit => 'Edit';
+  String get settings => 'Settings';
 
   @override
-  String get actionRestore => 'Restore';
+  String get language => 'Language';
 
   @override
-  String get actionSearch => 'Search';
+  String get theme => 'Theme';
 
   @override
-  String get actionClose => 'Close';
+  String get light => 'Light';
 
   @override
-  String get actionConfirm => 'Confirm';
+  String get dark => 'Dark';
 
   @override
-  String get actionRetry => 'Retry';
+  String get system => 'System';
 
   @override
-  String get actionDone => 'Done';
+  String get about => 'About';
 
   @override
-  String get syncStatusSynced => 'Synced just now';
+  String get close => 'Close';
 
   @override
-  String syncStatusPending(int count) {
-    return 'Offline — $count pending';
-  }
+  String get back => 'Back';
 
   @override
-  String get syncStatusError => 'Sync error — tap for details';
+  String get next => 'Next';
 
   @override
-  String get errorGeneric => 'Something went wrong. Please try again.';
+  String get done => 'Done';
 
   @override
-  String get errorOffline =>
-      'You are offline. Changes will sync when connected.';
+  String get delete => 'Delete';
 
   @override
-  String get errorNotFound => 'Not found.';
+  String get edit => 'Edit';
 
   @override
-  String get loadingLabel => 'Loading…';
+  String get restore => 'Restore';
 
   @override
-  String get emptyStateLabel => 'Nothing here yet.';
+  String get scanBarcode => 'Scan Barcode';
 
   @override
-  String get noResultsLabel => 'No results found.';
+  String get scanCover => 'Scan Cover';
+
+  @override
+  String get voiceInput => 'Voice Input';
+
+  @override
+  String get addManually => 'Add Manually';
+
+  @override
+  String get emptyLibraryTitle => 'Your library is empty';
+
+  @override
+  String get emptyLibrarySubtitle => 'Add your first book to get started.';
 }

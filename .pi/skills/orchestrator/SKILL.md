@@ -22,13 +22,37 @@ planner → specs/plan.md
 1. Name your session: `/name [your-name]`
 2. Read `AGENTS.md` for project configuration (auto-injected into all agents)
 
-## Step 1: Plan
+## Step 1: Resolve Project Paths
+
+AGENTS.md is auto-injected in context. Check if it has a `## Project Paths` table.
+
+For each path below, use the AGENTS.md value if present. If missing, ask the user:
+
+```
+ask_user({
+  question: "What is the {path description}?",
+  allowFreeform: true,
+  context: "Needed for agent dispatch. Provide a path relative to project root."
+})
+```
+
+| Variable | Default (if not in AGENTS.md) | Ask user if missing |
+|----------|-------------------------------|---------------------|
+| `{SPEC_PATH}` | `docs/spec.md` | ✅ Yes — spec is required for planning |
+| `{MOCKUPS_PATH}` | (skip if not provided) | 🟡 Optional — only if visual mockups exist |
+| `{APP_DIR}` | `.` (project root) | ✅ Yes — needed for build/deploy |
+| `{PLAN_PATH}` | `specs/plan.md` | ❌ No — sensible default |
+| `{REVIEW_PATH}` | `specs/review.md` | ❌ No — sensible default |
+| `{INTEGRATION_TEST_PATH}` | `integration_test/` | ❌ No — sensible default |
+| `{PACKAGE_NAME}` | (ask user) | ✅ Yes — needed for adb launch |
+
+Once resolved, remember these values for all subsequent dispatches.
 
 ```
 subagent({
   agent: "flutter-dev.planner",
-  task: "Read spec at docs/spec-v2.md and all mockups at docs/The-Little-Library---Proto-2/.
-    Produce specs/plan.md with dependency-ordered workstreams, each tagged with tier.
+  task: "Read the spec at {SPEC_PATH} and mockups at {MOCKUPS_PATH}.
+    Produce {PLAN_PATH} with dependency-ordered workstreams, each tagged with tier.
     If you need research, intercom({ action: 'ask', to: '[SESSION]', message: 'RESEARCH: ...' }).",
   async: true
 })
@@ -36,7 +60,7 @@ subagent({
 
 While planner runs, check for intercom asks and dispatch the researcher.
 
-Read `specs/plan.md`. **Present to user with this checklist:**
+Read `{PLAN_PATH}`. **Present to user with this checklist:**
 
 - ✅ **Coverage** — Every feature from the spec has a workstream?
 - ✅ **Dependencies** — Foundation before features? No circular deps?
@@ -62,7 +86,7 @@ subagent({
   thinking: "{determined thinking}",
   context: "fresh",
   task: "Implement workstream W{N}: {name}.
-    Plan section: specs/plan.md (section W{N})
+    Plan section: {PLAN_PATH} (section W{N})
     Files: {file list}
     Tests: {test file paths}
     Dependencies: {list} — read their files for context if needed.
@@ -83,9 +107,12 @@ After ALL workstreams complete, dispatch ONE reviewer:
 ```
 subagent({
   agent: "flutter-dev.reviewer",
-  task: "Review all workstream changes from specs/plan.md against git diff.
+  task: "Review all workstream changes AND write integration tests.
+    Read the spec at {SPEC_PATH} and plan at {PLAN_PATH}. Run git diff.
     Run dart analyze and flutter test. Check coverage.
-    Output: specs/review.md.",
+    Write integration tests in {INTEGRATION_TEST_PATH} covering cross-workstream
+    user journeys from the spec. Run: flutter test {INTEGRATION_TEST_PATH}.
+    Output: {REVIEW_PATH}.",
   context: "fresh",
   async: true
 })
@@ -99,12 +126,12 @@ Read `specs/review.md`. Count BLOCKERS.
 ## Step 4: Quality Gate
 
 ```bash
-cd the_little_library_app
-flutter clean && flutter pub get && dart run build_runner build --delete-conflicting-outputs
+cd {APP_DIR}
+flutter clean && flutter pub get && dart run build_runner build --delete-conflicting-outputs --force-jit
 flutter analyze && flutter test && flutter test integration_test/
 flutter build apk --debug
 adb install -r build/app/outputs/flutter-apk/app-debug.apk
-adb shell am start -n com.abhijits.thelittlelibrary/.MainActivity
+adb shell am start -n {PACKAGE_NAME}/.MainActivity
 ```
 
 ## Intercom Handling

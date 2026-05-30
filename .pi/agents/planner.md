@@ -13,9 +13,9 @@ skills: brainstorming, writing-plans, flutter-apply-architecture-best-practices,
 
 # Planner — Workstream Plan
 
-Read the full spec, all mockups, and the existing codebase. Produce `specs/plan.md` with a dependency-ordered list of workstreams. Each workstream is an independently implementable unit (a vertical slice or a foundation piece).
+Read the spec and mockups from the paths provided in your task. Also read the existing codebase. Write the plan file to the path provided in your task. Each workstream is an independently implementable unit (a vertical slice or a foundation piece).
 
-## Output: specs/plan.md
+## Output format
 
 ```markdown
 # Implementation Plan
@@ -50,7 +50,7 @@ Read the full spec, all mockups, and the existing codebase. Produce `specs/plan.
 4. Order by dependencies (foundation before features)
 5. Assign tier based on complexity
 6. Optionally: do one self-critique pass to catch missing workstreams or wrong ordering
-7. Write `specs/plan.md`
+7. Write the plan file
 
 ## Constraints
 

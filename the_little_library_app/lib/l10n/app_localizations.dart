@@ -62,7 +62,7 @@ import 'app_localizations_en.dart';
 /// property.
 abstract class AppLocalizations {
   AppLocalizations(String locale)
-    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+      : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -85,194 +85,218 @@ abstract class AppLocalizations {
   /// of delegates is preferred or required.
   static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
       <LocalizationsDelegate<dynamic>>[
-        delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ];
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[Locale('en')];
 
-  /// Application title shown in the app bar and system settings.
+  /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
   /// **'The Little Library'**
   String get appTitle;
 
-  /// No description provided for @navCatalog.
+  /// No description provided for @appTitleShort.
   ///
   /// In en, this message translates to:
-  /// **'Catalog'**
-  String get navCatalog;
+  /// **'Little Library'**
+  String get appTitleShort;
 
-  /// No description provided for @navAddBook.
+  /// No description provided for @catalogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Library'**
+  String get catalogTitle;
+
+  /// No description provided for @addBook.
   ///
   /// In en, this message translates to:
   /// **'Add Book'**
-  String get navAddBook;
+  String get addBook;
 
-  /// No description provided for @navScanner.
+  /// No description provided for @editBook.
   ///
   /// In en, this message translates to:
-  /// **'Scanner'**
-  String get navScanner;
+  /// **'Edit Book'**
+  String get editBook;
 
-  /// No description provided for @navLocations.
+  /// No description provided for @deleteBook.
   ///
   /// In en, this message translates to:
-  /// **'Locations'**
-  String get navLocations;
+  /// **'Delete Book'**
+  String get deleteBook;
 
-  /// No description provided for @navActiveLoans.
-  ///
-  /// In en, this message translates to:
-  /// **'Active Loans'**
-  String get navActiveLoans;
-
-  /// No description provided for @navActivity.
-  ///
-  /// In en, this message translates to:
-  /// **'Activity'**
-  String get navActivity;
-
-  /// No description provided for @navDeletedBooks.
-  ///
-  /// In en, this message translates to:
-  /// **'Deleted Books'**
-  String get navDeletedBooks;
-
-  /// No description provided for @navSettings.
-  ///
-  /// In en, this message translates to:
-  /// **'Settings'**
-  String get navSettings;
-
-  /// No description provided for @navExport.
-  ///
-  /// In en, this message translates to:
-  /// **'Export'**
-  String get navExport;
-
-  /// No description provided for @navShareLibrary.
-  ///
-  /// In en, this message translates to:
-  /// **'Share Library'**
-  String get navShareLibrary;
-
-  /// No description provided for @actionSave.
+  /// No description provided for @save.
   ///
   /// In en, this message translates to:
   /// **'Save'**
-  String get actionSave;
+  String get save;
 
-  /// No description provided for @actionCancel.
+  /// No description provided for @cancel.
   ///
   /// In en, this message translates to:
   /// **'Cancel'**
-  String get actionCancel;
+  String get cancel;
 
-  /// No description provided for @actionDelete.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete'**
-  String get actionDelete;
-
-  /// No description provided for @actionEdit.
-  ///
-  /// In en, this message translates to:
-  /// **'Edit'**
-  String get actionEdit;
-
-  /// No description provided for @actionRestore.
-  ///
-  /// In en, this message translates to:
-  /// **'Restore'**
-  String get actionRestore;
-
-  /// No description provided for @actionSearch.
-  ///
-  /// In en, this message translates to:
-  /// **'Search'**
-  String get actionSearch;
-
-  /// No description provided for @actionClose.
-  ///
-  /// In en, this message translates to:
-  /// **'Close'**
-  String get actionClose;
-
-  /// No description provided for @actionConfirm.
+  /// No description provided for @confirm.
   ///
   /// In en, this message translates to:
   /// **'Confirm'**
-  String get actionConfirm;
+  String get confirm;
 
-  /// No description provided for @actionRetry.
+  /// No description provided for @search.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get search;
+
+  /// No description provided for @noResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No results found'**
+  String get noResults;
+
+  /// No description provided for @loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading...'**
+  String get loading;
+
+  /// No description provided for @error.
+  ///
+  /// In en, this message translates to:
+  /// **'Error'**
+  String get error;
+
+  /// No description provided for @retry.
   ///
   /// In en, this message translates to:
   /// **'Retry'**
-  String get actionRetry;
+  String get retry;
 
-  /// No description provided for @actionDone.
+  /// No description provided for @settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settings;
+
+  /// No description provided for @language.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get language;
+
+  /// No description provided for @theme.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get theme;
+
+  /// No description provided for @light.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get light;
+
+  /// No description provided for @dark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get dark;
+
+  /// No description provided for @system.
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get system;
+
+  /// No description provided for @about.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get about;
+
+  /// No description provided for @close.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get close;
+
+  /// No description provided for @back.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get back;
+
+  /// No description provided for @next.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get next;
+
+  /// No description provided for @done.
   ///
   /// In en, this message translates to:
   /// **'Done'**
-  String get actionDone;
+  String get done;
 
-  /// No description provided for @syncStatusSynced.
+  /// No description provided for @delete.
   ///
   /// In en, this message translates to:
-  /// **'Synced just now'**
-  String get syncStatusSynced;
+  /// **'Delete'**
+  String get delete;
 
-  /// No description provided for @syncStatusPending.
+  /// No description provided for @edit.
   ///
   /// In en, this message translates to:
-  /// **'Offline — {count} pending'**
-  String syncStatusPending(int count);
+  /// **'Edit'**
+  String get edit;
 
-  /// No description provided for @syncStatusError.
+  /// No description provided for @restore.
   ///
   /// In en, this message translates to:
-  /// **'Sync error — tap for details'**
-  String get syncStatusError;
+  /// **'Restore'**
+  String get restore;
 
-  /// No description provided for @errorGeneric.
+  /// No description provided for @scanBarcode.
   ///
   /// In en, this message translates to:
-  /// **'Something went wrong. Please try again.'**
-  String get errorGeneric;
+  /// **'Scan Barcode'**
+  String get scanBarcode;
 
-  /// No description provided for @errorOffline.
+  /// No description provided for @scanCover.
   ///
   /// In en, this message translates to:
-  /// **'You are offline. Changes will sync when connected.'**
-  String get errorOffline;
+  /// **'Scan Cover'**
+  String get scanCover;
 
-  /// No description provided for @errorNotFound.
+  /// No description provided for @voiceInput.
   ///
   /// In en, this message translates to:
-  /// **'Not found.'**
-  String get errorNotFound;
+  /// **'Voice Input'**
+  String get voiceInput;
 
-  /// No description provided for @loadingLabel.
+  /// No description provided for @addManually.
   ///
   /// In en, this message translates to:
-  /// **'Loading…'**
-  String get loadingLabel;
+  /// **'Add Manually'**
+  String get addManually;
 
-  /// No description provided for @emptyStateLabel.
+  /// No description provided for @emptyLibraryTitle.
   ///
   /// In en, this message translates to:
-  /// **'Nothing here yet.'**
-  String get emptyStateLabel;
+  /// **'Your library is empty'**
+  String get emptyLibraryTitle;
 
-  /// No description provided for @noResultsLabel.
+  /// No description provided for @emptyLibrarySubtitle.
   ///
   /// In en, this message translates to:
-  /// **'No results found.'**
-  String get noResultsLabel;
+  /// **'Add your first book to get started.'**
+  String get emptyLibrarySubtitle;
 }
 
 class _AppLocalizationsDelegate
@@ -300,9 +324,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-    'an issue with the localizations generation tool. Please file an issue '
-    'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.',
-  );
+      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+      'an issue with the localizations generation tool. Please file an issue '
+      'on GitHub with a reproducible sample app and the gen-l10n configuration '
+      'that was used.');
 }
