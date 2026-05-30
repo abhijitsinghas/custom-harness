@@ -16,19 +16,21 @@ Paths referenced by agents. Override these for different projects.
 | Plan output | `specs/plan.md` |
 | Review output | `specs/review.md` |
 | Package name | `com.abhijits.thelittlelibrary` |
-| Review output | `specs/review.md` |
 
 ## Pipeline Configuration
 
 ```yaml
 orchestrator:
-  pipeline: 3-agent      # planner → feature-agent × N → reviewer
+  pipeline: multi-phase   # planner → feature-agent × N (with test gates) → reviewer
+  test_phases: true        # Planner injects IT{N} and E2E{N} workstreams between feature groups
 
 planning:
-  max_rounds: 2          # Self-critique rounds for planner (optional, 1-2 max)
+  max_rounds: 2            # Self-critique rounds for planner (optional, 1-2 max)
+  test_workstreams: true   # Planner creates dedicated integration (IT) and E2E workstreams
 
 review:
-  max_rounds: 2          # Max feedback rounds per reviewer
+  max_rounds: 2            # Max feedback rounds per reviewer
+  test_verification: true   # Reviewer verifies integration/E2E tests exist per plan — does NOT author them
 ```
 
 ---
@@ -59,7 +61,7 @@ review:
 ### Layered Architecture — MVVM + Repository Pattern
 
 ```
-v2/                              ← orchestrator workspace (current directory)
+the_little_library/              ← orchestrator workspace (current directory)
 ├── AGENTS.md                    ← architecture, conventions, shared contracts
 ├── docs/                        ← specs, implementation plan, mockups
 ├── specs/                       ← task specs and roadmap
@@ -109,7 +111,7 @@ v2/                              ← orchestrator workspace (current directory)
 ### Code Quality
 
 - Run `dart analyze` before committing. Zero warnings, zero errors.
-- Coverage targets: 90% controllers, 85% repositories, 70% widgets.
+- Coverage targets: 90% controllers, 85% repositories, 70% widgets, 100% planned integration/E2E journeys must pass.
 
 ### Build & Deploy (Per Phase)
 
@@ -130,12 +132,27 @@ Then run smoke tests on device to verify the app launches and key flows work.
 
 ### Test Layers (All Phases Must Cover)
 
-| Layer | Location | Runs With | Purpose |
-|-------|----------|-----------|---------|
-| **Unit** | `test/` | `flutter test` | Individual functions, DAOs, providers, validators |
-| **Widget** | `test/` | `flutter test` | Screen rendering, interactions, state changes |
-| **Integration** | `integration_test/` | `flutter test integration_test/` | Multi-screen flows, data layer ↔ UI |
-| **E2E** | `integration_test/` | `flutter test integration_test/` | Full user journeys on device |
+| Layer | Location | Runs With | Purpose | Coverage Target |
+|-------|----------|-----------|---------|----------------|
+| **Unit** | `test/` | `flutter test` | Individual functions, DAOs, providers, validators | 90% controllers, 85% repos |
+| **Widget** | `test/` | `flutter test` | Screen rendering, interactions, state changes | 70% widgets |
+| **Integration** | `integration_test/` | `flutter test integration_test/` | Multi-screen flows, data layer ↔ UI | All planned IT journeys pass |
+| **E2E** | `integration_test/` | `flutter test integration_test/` | Full user journeys on device | All planned E2E journeys pass |
+
+### Test Workstream Naming
+
+Planner creates dedicated test workstreams interleaved with feature workstreams:
+
+| Prefix | Type | Location | Description |
+|--------|------|----------|-------------|
+| `W{N}` | Feature | `lib/` + `test/` | Feature implementation + unit/widget tests |
+| `IT{N}` | Integration | `integration_test/` only | Multi-screen/data-layer tests spanning 2+ feature workstreams |
+| `E2E{N}` | End-to-End | `integration_test/` only | Full user journeys exercising complete features/stories |
+
+**Test workstream placement rules:**
+- `IT` workstreams are placed after foundational layers complete (schema, repos, core UI)
+- `E2E` workstreams are placed after a complete user story is delivered (e.g., Add Book + Browse + View Details)
+- Test workstreams may read from any `lib/` file but must only create/modify files in `integration_test/`
 
 ---
 
