@@ -1,0 +1,9 @@
+{
+  "packages": [
+    "npm:pi-ask-user",
+    "npm:@plannotator/pi-extension",
+    "npm:intercom",
+    "npm:pi-intercom",
+    "npm:pi-subagents"
+  ]
+}

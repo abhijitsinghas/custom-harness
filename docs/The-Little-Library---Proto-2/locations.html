@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>The Little Library — Locations</title>
+<style>
+  :root {
+    --md-sys-color-primary: #5D4037;
+    --md-sys-color-on-primary: #FFFFFF;
+    --md-sys-color-primary-container: #EADDCF;
+    --md-sys-color-on-primary-container: #3E2B23;
+    --md-sys-color-secondary: #FFA000;
+    --md-sys-color-on-secondary: #FFFFFF;
+    --md-sys-color-secondary-container: #FFE0B2;
+    --md-sys-color-surface: #FFF8F0;
+    --md-sys-color-surface-variant: #F2ECE6;
+    --md-sys-color-background: #FAFAF5;
+    --md-sys-color-on-surface: #1C1B1F;
+    --md-sys-color-on-surface-variant: #49454F;
+    --md-sys-color-outline: #79747E;
+    --md-sys-color-outline-variant: #CAC4D0;
+    --md-sys-color-error: #B3261E;
+    --md-sys-color-error-container: #F9DEDC;
+    --md-sys-color-on-error-container: #410E0B;
+    --md-sys-color-green: #4CAF50;
+    --md-sys-color-green-container: #E8F5E9;
+    --md-sys-color-on-green-container: #1B5E20;
+    --md-sys-color-blue: #2196F3;
+    --md-sys-color-amber: #FF9800;
+    --md-sys-elevation-1: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
+    --md-sys-elevation-2: 0 3px 6px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.12);
+    --md-sys-elevation-fab: 0 4px 8px rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.14);
+    --font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+  [data-theme="dark"] {
+    --md-sys-color-primary: #D4C4B5;
+    --md-sys-color-on-primary: #3E2B23;
+    --md-sys-color-primary-container: #5D4037;
+    --md-sys-color-on-primary-container: #EADDCF;
+    --md-sys-color-secondary: #FFB945;
+    --md-sys-color-on-secondary: #3E2B23;
+    --md-sys-color-secondary-container: #6B4A2E;
+    --md-sys-color-surface: #2B2930;
+    --md-sys-color-surface-variant: #3E3B44;
+    --md-sys-color-background: #1C1B1F;
+    --md-sys-color-on-surface: #E6E1E5;
+    --md-sys-color-on-surface-variant: #CAC4D0;
+    --md-sys-color-outline: #938F99;
+    --md-sys-color-outline-variant: #49454F;
+    --md-sys-color-error: #F2B8B5;
+    --md-sys-color-error-container: #8C1D18;
+    --md-sys-color-on-error-container: #F9DEDC;
+    --md-sys-color-green: #81C784;
+    --md-sys-color-green-container: #1B5E20;
+    --md-sys-color-on-green-container: #E8F5E9;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    font-family: var(--font-family);
+    background: #000;
+    color: var(--md-sys-color-on-surface);
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .device-frame {
+    width: 412px;
+    height: 900px;
+    background: var(--md-sys-color-background);
+    border-radius: 24px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  @media (max-width: 440px) {
+    .device-frame { width: 100vw; height: 100vh; border-radius: 0; }
+  }
+  .status-bar {
+    height: 32px;
+    background: var(--md-sys-color-surface);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+  }
+  .app-bar {
+    height: 56px;
+    background: var(--md-sys-color-surface);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 8px;
+    box-shadow: var(--md-sys-elevation-1);
+    z-index: 10;
+  }
+  .app-bar__title {
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+    flex: 1;
+  }
+  .icon-btn {
+    width: 40px; height: 40px;
+    border-radius: 20px;
+    border: none;
+    background: transparent;
+    color: var(--md-sys-color-on-surface-variant);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--md-sys-color-background);
+    padding-bottom: 80px;
+    position: relative;
+  }
+  .content::-webkit-scrollbar { display: none; }
+
+  /* Tree */
+  .tree { padding: 8px 0; }
+  .tree-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background 0.15s;
+    position: relative;
+  }
+  .tree-item:hover, .tree-item:active { background: var(--md-sys-color-surface-variant); }
+  .tree-item.room { padding-left: 16px; }
+  .tree-item.cupboard { padding-left: 44px; }
+  .tree-item.shelf { padding-left: 72px; }
+  .tree-toggle {
+    width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.2s;
+  }
+  .tree-toggle.open { transform: rotate(90deg); }
+  .tree-toggle svg { width: 18px; height: 18px; fill: var(--md-sys-color-on-surface-variant); }
+  .tree-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .tree-icon svg { width: 18px; height: 18px; fill: currentColor; }
+  .tree-info { flex: 1; }
+  .tree-name { font-size: 15px; font-weight: 500; color: var(--md-sys-color-on-surface); }
+  .tree-meta { font-size: 12px; color: var(--md-sys-color-on-surface-variant); margin-top: 2px; }
+  .tree-count {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface-variant);
+    background: var(--md-sys-color-surface-variant);
+    padding: 2px 10px;
+    border-radius: 10px;
+  }
+  .tree-children { display: none; }
+  .tree-children.open { display: block; }
+
+  /* Tree actions expansion (room / cupboard / shelf) */
+  .tree-actions {
+    display: none;
+    padding: 8px 16px 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    background: var(--md-sys-color-surface);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  }
+  .tree-actions.open { display: flex; }
+
+  .icon-action-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 20px;
+    border: 1.5px solid var(--md-sys-color-outline);
+    background: var(--md-sys-color-surface);
+    color: var(--md-sys-color-on-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .icon-action-btn.primary {
+    background: var(--md-sys-color-primary-container);
+    border-color: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+  }
+  .icon-action-btn.danger {
+    border-color: var(--md-sys-color-error-container);
+    color: var(--md-sys-color-error);
+    background: var(--md-sys-color-error-container);
+  }
+  .icon-action-btn svg { width: 20px; height: 20px; fill: currentColor; }
+
+  /* FAB */
+  .fab {
+    position: absolute;
+    bottom: 28px;
+    right: 20px;
+    width: 56px; height: 56px;
+    border-radius: 16px;
+    border: none;
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--md-sys-elevation-fab);
+    z-index: 20;
+  }
+  .fab svg { width: 24px; height: 24px; fill: currentColor; }
+
+  /* ─── BOOK PICKER OVERLAY ─── */
+  .picker-overlay {
+    position: absolute;
+    inset: 0;
+    background: var(--md-sys-color-background);
+    display: none;
+    flex-direction: column;
+    z-index: 30;
+  }
+  .picker-overlay.open { display: flex; }
+  .search-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--md-sys-color-surface);
+  }
+  .search-input {
+    flex: 1;
+    height: 44px;
+    border-radius: 22px;
+    border: 1.5px solid var(--md-sys-color-outline);
+    background: var(--md-sys-color-surface);
+    color: var(--md-sys-color-on-surface);
+    padding: 0 16px;
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+  }
+  .search-input:focus { border-color: var(--md-sys-color-primary); }
+  .search-input::placeholder { color: var(--md-sys-color-on-surface-variant); }
+  .filter-chips {
+    display: flex;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--md-sys-color-surface);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .filter-chips::-webkit-scrollbar { display: none; }
+  .filter-chip {
+    height: 32px;
+    padding: 0 14px;
+    border-radius: 16px;
+    border: 1.5px solid var(--md-sys-color-outline);
+    background: var(--md-sys-color-surface);
+    color: var(--md-sys-color-on-surface);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .filter-chip.active {
+    background: var(--md-sys-color-primary-container);
+    border-color: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+  }
+  .book-list {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 80px;
+  }
+  .book-list::-webkit-scrollbar { display: none; }
+  .book-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--md-sys-color-surface);
+    margin-bottom: 1px;
+    cursor: pointer;
+  }
+  .book-row:active { background: var(--md-sys-color-surface-variant); }
+  .book-checkbox {
+    width: 20px; height: 20px;
+    border-radius: 4px;
+    border: 2px solid var(--md-sys-color-outline);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .book-checkbox.checked {
+    background: var(--md-sys-color-primary);
+    border-color: var(--md-sys-color-primary);
+  }
+  .book-checkbox.checked svg { width: 14px; height: 14px; fill: var(--md-sys-color-on-primary); }
+  .book-cover {
+    width: 40px; height: 56px;
+    border-radius: 4px;
+    background: var(--md-sys-color-surface-variant);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .book-cover svg { width: 20px; height: 20px; fill: var(--md-sys-color-outline); opacity: 0.5; }
+  .book-info { flex: 1; min-width: 0; }
+  .book-title { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .book-author { font-size: 12px; color: var(--md-sys-color-on-surface-variant); margin-top: 2px; }
+  .book-badges { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .book-badge {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 8px;
+  }
+  .book-badge.location { background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); }
+  .book-badge.here { background: var(--md-sys-color-green-container); color: var(--md-sys-color-on-green-container); border: 1.5px solid var(--md-sys-color-green); }
+  .book-badge.loan { background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-primary-container); }
+
+  /* Selection bar */
+  .selection-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: var(--md-sys-color-surface);
+    padding: 12px 16px 28px;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    z-index: 35;
+  }
+  .selection-bar__text { font-size: 14px; font-weight: 500; }
+  .selection-bar button {
+    height: 48px;
+    padding: 0 24px;
+    border-radius: 24px;
+    border: none;
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    font-size: 15px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .selection-bar button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* Dialogs */
+  .dialog-overlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 24px;
+  }
+  .dialog-overlay.open { display: flex; }
+  .dialog {
+    width: 100%;
+    max-width: 320px;
+    background: var(--md-sys-color-surface);
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: var(--md-sys-elevation-2);
+  }
+  .dialog h4 { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
+  .dialog p { font-size: 14px; color: var(--md-sys-color-on-surface-variant); line-height: 1.5; margin-bottom: 16px; }
+  .dialog ul { font-size: 13px; color: var(--md-sys-color-on-surface-variant); line-height: 1.6; margin: 0 0 16px 16px; }
+  .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .dialog-actions button {
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 20px;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .dialog-actions .btn-text { background: transparent; color: var(--md-sys-color-primary); }
+  .dialog-actions .btn-filled { background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); }
+
+  /* Snackbar */
+  .snackbar {
+    position: absolute;
+    bottom: 80px; left: 16px; right: 16px;
+    background: #323232; color: #fff;
+    padding: 12px 16px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 14px;
+    transform: translateY(120px);
+    transition: transform 0.35s ease;
+    z-index: 40;
+  }
+  .snackbar.open { transform: translateY(0); }
+  .snackbar button {
+    background: transparent; border: none; color: var(--md-sys-color-secondary);
+    font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer;
+  }
+
+  /* Add dialog field */
+  .dialog-field {
+    width: 100%;
+    height: 48px;
+    border-radius: 8px;
+    border: 1.5px solid var(--md-sys-color-outline);
+    background: var(--md-sys-color-surface);
+    color: var(--md-sys-color-on-surface);
+    padding: 0 14px;
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+    margin-bottom: 16px;
+  }
+  .dialog-field:focus { border-color: var(--md-sys-color-primary); }
+
+  .gesture-nav {
+    height: 20px;
+    background: var(--md-sys-color-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 8px;
+  }
+  .gesture-pill {
+    width: 108px;
+    height: 4px;
+    background: var(--md-sys-color-on-surface);
+    opacity: 0.4;
+    border-radius: 2px;
+  }
+</style>
+</head>
+<body>
+<div class="device-frame">
+  <div class="status-bar"><span>9:41</span><span>🔋 85%</span></div>
+
+  <!-- Main Locations View -->
+  <div class="app-bar" id="main-appbar">
+    <button class="icon-btn" onclick="goBack()" aria-label="Back">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+    </button>
+    <span class="app-bar__title">Locations</span>
+    <div style="width:40px"></div>
+  </div>
+
+  <div class="content" id="main-content">
+    <div class="tree">
+      <!-- Study -->
+      <div class="tree-item room" onclick="toggleActions(this)">
+        <div class="tree-toggle open" onclick="event.stopPropagation(); toggleTree(this.parentElement)"><svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg></div>
+        <div class="tree-icon"><svg viewBox="0 0 24 24"><path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/></svg></div>
+        <div class="tree-info"><div class="tree-name">Study</div><div class="tree-meta">2 cupboards, 5 shelves</div></div>
+        <span class="tree-count">142 books</span>
+      </div>
+      <div class="tree-actions" id="actions-study">
+        <button class="icon-action-btn" onclick="editName('Study')" aria-label="Edit name"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 000-1.41l-2.34-2.34a.996.996 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
+        <button class="icon-action-btn primary" onclick="openPicker('Study')" aria-label="Assign books"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></button>
+        <button class="icon-action-btn" onclick="viewBooks('Study', 142)" aria-label="View books"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg></button>
+        <button class="icon-action-btn danger" onclick="showDelete('Study')" aria-label="Delete"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
+      </div>
+      <div class="tree-children open">
+        <div class="tree-item cupboard" onclick="toggleActions(this)">
+          <div class="tree-toggle open" onclick="event.stopPropagation(); toggleTree(this.parentElement)"><svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg></div>
+          <div class="tree-icon"><svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zm-3 13H9v-2h8v2zm0-4H9V9h8v2zm0-4H9V5h8v2z"/></svg></div>
+          <div class="tree-info"><div class="tree-name">Main Bookshelf</div><div class="tree-meta">3 shelves</div></div>
+          <span class="tree-count">89 books</span>
+        </div>
+        <div class="tree-actions" id="actions-main-bookshelf">
+          <button class="icon-action-btn" onclick="editName('Main Bookshelf')" aria-label="Edit name"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 000-1.41l-2.34-2.34a.996.996 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
+          <button class="icon-action-btn primary" onclick="openPicker('Main Bookshelf')" aria-label="Assign books"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></button>
+          <button class="icon-action-btn" onclick="viewBooks('Main Bookshelf', 89)" aria-label="View books"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg></button>
+          <button class="icon-action-btn danger" onclick="showDelete('Main Bookshelf')" aria-label="Delete"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
+        </div>
+        <div class="tree-children open">
+          <!-- Shelf 1 with actions -->
+          <div class="tree-item shelf" onclick="toggleActions(this)">
+            <div style="width:24px"></div>
+            <div class="tree-icon" style="background:var(--md-sys-color-surface-variant)"><svg viewBox="0 0 24 24" fill="var(--md-sys-color-on-surface-variant)"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zm-3 13H9v-2h8v2zm0-4H9V9h8v2zm0-4H9V5h8v2z"/></svg></div>
+            <div class="tree-info"><div class="tree-name">Shelf 1</div></div>
+            <span class="tree-count">32 books</span>
+          </div>
+          <div class="tree-actions" id="actions-shelf-1">
+            <button class="icon-action-btn" onclick="editName('Shelf 1')" aria-label="Edit name"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 000-1.41l-2.34-2.34a.996.996 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
+            <button class="icon-action-btn primary" onclick="openPicker('Shelf 1')" aria-label="Assign books"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></button>
+            <button class="icon-action-btn" onclick="viewBooks('Shelf 1', 32)" aria-label="View books"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg></button>
+            <button class="icon-action-btn danger" onclick="showDelete('Shelf 1')" aria-label="Delete"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
+          </div>
+
+          <div class="tree-item shelf" onclick="toggleActions(this)">
+            <div style="width:24px"></div>
+            <div class="tree-icon" style="background:var(--md-sys-color-surface-variant)"><svg viewBox="0 0 24 24" fill="var(--md-sys-color-on-surface-variant)"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zm-3 13H9v-2h8v2zm0-4H9V9h8v2zm0-4H9V5h8v2z"/></svg></div>
+            <div class="tree-info"><div class="tree-name">Shelf 2</div></div>
+            <span class="tree-count">41 books</span>
+          </div>
+          <div class="tree-actions" id="actions-shelf-2">
+            <button class="icon-action-btn" onclick="editName('Shelf 2')" aria-label="Edit name"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 000-1.41l-2.34-2.34a.996.996 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
+            <button class="icon-action-btn primary" onclick="openPicker('Shelf 2')" aria-label="Assign books"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></button>
+            <button class="icon-action-btn" onclick="viewBooks('Shelf 2', 41)" aria-label="View books"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg></button>
+            <button class="icon-action-btn danger" onclick="showDelete('Shelf 2')" aria-label="Delete"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
+          </div>
+
+          <div class="tree-item shelf" onclick="toggleActions(this)">
+            <div style="width:24px"></div>
+            <div class="tree-icon" style="background:var(--md-sys-color-surface-variant)"><svg viewBox="0 0 24 24" fill="var(--md-sys-color-on-surface-variant)"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zm-3 13H9v-2h8v2zm0-4H9V9h8v2zm0-4H9V5h8v2z"/></svg></div>
+            <div class="tree-info"><div class="tree-name">Shelf 3</div></div>
+            <span class="tree-count">16 books</span>
+          </div>
+          <div class="tree-actions" id="actions-shelf-3">
+            <button class="icon-action-btn" onclick="editName('Shelf 3')" aria-label="Edit name"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 000-1.41l-2.34-2.34a.996.996 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
+            <button class="icon-action-btn primary" onclick="openPicker('Shelf 3')" aria-label="Assign books"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></button>
+            <button class="icon-action-btn" onclick="viewBooks('Shelf 3', 16)" aria-label="View books"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg></button>
+            <button class="icon-action-btn danger" onclick="showDelete('Shelf 3')" aria-label="Delete"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
+          </div>
+        </div>
+
+        <div class="tree-item cupboard" onclick="toggleActions(this)">
+          <div class="tree-toggle" onclick="event.stopPropagation(); toggleTree(this.parentElement)"><svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg></div>
+          <div class="tree-icon"><svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zm-3 13H9v-2h8v2zm0-4H9V9h8v2zm0-4H9V5h8v2z"/></svg></div>
+          <div class="tree-info"><div class="tree-name">Desk Cupboard</div><div class="tree-meta">2 shelves</div></div>
+          <span class="tree-count">53 books</span>
+        </div>
+        <div class="tree-actions" id="actions-desk-cupboard">
+          <button class="icon-action-btn" onclick="editName('Desk Cupboard')" aria-label="Edit name"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 000-1.41l-2.34-2.34a.996.996 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
+          <button class="icon-action-btn primary" onclick="openPicker('Desk Cupboard')" aria-label="Assign books"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></button>
+          <button class="icon-action-btn" onclick="viewBooks('Desk Cupboard', 53)" aria-label="View books"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg></button>
+          <button class="icon-action-btn danger" onclick="showDelete('Desk Cupboard')" aria-label="Delete"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
+        </div>
+
+      <!-- Living Room -->
+      <div class="tree-item room" onclick="toggleActions(this)">
+        <div class="tree-toggle" onclick="event.stopPropagation(); toggleTree(this.parentElement)"><svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg></div>
+        <div class="tree-icon"><svg viewBox="0 0 24 24"><path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/></svg></div>
+        <div class="tree-info"><div class="tree-name">Living Room</div><div class="tree-meta">2 cupboards, 4 shelves</div></div>
+        <span class="tree-count">98 books</span>
+      </div>
+      <div class="tree-actions" id="actions-living-room">
+        <button class="icon-action-btn" onclick="editName('Living Room')" aria-label="Edit name"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 000-1.41l-2.34-2.34a.996.996 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
+        <button class="icon-action-btn primary" onclick="openPicker('Living Room')" aria-label="Assign books"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></button>
+        <button class="icon-action-btn" onclick="viewBooks('Living Room', 98)" aria-label="View books"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg></button>
+        <button class="icon-action-btn danger" onclick="showDelete('Living Room')" aria-label="Delete"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
+      </div>
+
+      <!-- Bedroom -->
+      <div class="tree-item room" onclick="toggleActions(this)">
+        <div class="tree-toggle" onclick="event.stopPropagation(); toggleTree(this.parentElement)"><svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg></div>
+        <div class="tree-icon"><svg viewBox="0 0 24 24"><path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/></svg></div>
+        <div class="tree-info"><div class="tree-name">Bedroom</div><div class="tree-meta">2 cupboards, 3 shelves</div></div>
+        <span class="tree-count">45 books</span>
+      </div>
+      <div class="tree-actions" id="actions-bedroom">
+        <button class="icon-action-btn" onclick="editName('Bedroom')" aria-label="Edit name"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 000-1.41l-2.34-2.34a.996.996 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
+        <button class="icon-action-btn primary" onclick="openPicker('Bedroom')" aria-label="Assign books"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg></button>
+        <button class="icon-action-btn" onclick="viewBooks('Bedroom', 45)" aria-label="View books"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg></button>
+        <button class="icon-action-btn danger" onclick="showDelete('Bedroom')" aria-label="Delete"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <button class="fab" onclick="showAddDialog()" aria-label="Add location" id="main-fab">
+    <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+  </button>
+
+  <!-- ─── BOOK PICKER OVERLAY ─── -->
+  <div class="picker-overlay" id="picker-overlay">
+    <div class="app-bar">
+      <button class="icon-btn" onclick="closePicker()" aria-label="Back">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+      </button>
+      <span class="app-bar__title" id="picker-title">Assign to Shelf 1</span>
+      <div style="width:40px"></div>
+    </div>
+
+    <div class="search-bar">
+      <input class="search-input" placeholder="Search by title or author…" id="picker-search">
+    </div>
+
+    <div class="filter-chips">
+      <button class="filter-chip active" onclick="toggleFilter(this)">All</button>
+      <button class="filter-chip" onclick="toggleFilter(this)">Fiction</button>
+      <button class="filter-chip" onclick="toggleFilter(this)">Non-fiction</button>
+      <button class="filter-chip" onclick="toggleFilter(this)">Hindi</button>
+      <button class="filter-chip" onclick="toggleFilter(this)">Available</button>
+      <button class="filter-chip" onclick="toggleFilter(this)">On loan</button>
+    </div>
+
+    <div class="book-list" id="book-list">
+      <!-- Book 1: already here -->
+      <div class="book-row" onclick="toggleBook(this)">
+        <div class="book-checkbox checked" data-checked="true">
+          <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        </div>
+        <div class="book-cover">
+          <svg viewBox="0 0 24 24"><path d="M18 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+        </div>
+        <div class="book-info">
+          <div class="book-title">Sapiens: A Brief History of Humankind</div>
+          <div class="book-author">Yuval Noah Harari</div>
+          <div class="book-badges">
+            <span class="book-badge here">Already here</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Book 2: from another location -->
+      <div class="book-row" onclick="toggleBook(this)">
+        <div class="book-checkbox" data-checked="false">
+          <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        </div>
+        <div class="book-cover">
+          <svg viewBox="0 0 24 24"><path d="M18 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+        </div>
+        <div class="book-info">
+          <div class="book-title">Atomic Habits</div>
+          <div class="book-author">James Clear</div>
+          <div class="book-badges">
+            <span class="book-badge location">Living Room / Shelf 2</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Book 3: no location -->
+      <div class="book-row" onclick="toggleBook(this)">
+        <div class="book-checkbox" data-checked="false">
+          <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        </div>
+        <div class="book-cover">
+          <svg viewBox="0 0 24 24"><path d="M18 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+        </div>
+        <div class="book-info">
+          <div class="book-title">Dune</div>
+          <div class="book-author">Frank Herbert</div>
+          <div class="book-badges">
+            <span class="book-badge location" style="background:var(--md-sys-color-outline-variant);color:var(--md-sys-color-on-surface-variant)">No location</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Book 4: on loan -->
+      <div class="book-row" onclick="toggleBook(this)">
+        <div class="book-checkbox" data-checked="false">
+          <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        </div>
+        <div class="book-cover">
+          <svg viewBox="0 0 24 24"><path d="M18 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+        </div>
+        <div class="book-info">
+          <div class="book-title">Becoming</div>
+          <div class="book-author">Michelle Obama</div>
+          <div class="book-badges">
+            <span class="book-badge loan">On loan</span>
+            <span class="book-badge location">Study / Shelf 3</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Book 5 -->
+      <div class="book-row" onclick="toggleBook(this)">
+        <div class="book-checkbox" data-checked="false">
+          <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        </div>
+        <div class="book-cover">
+          <svg viewBox="0 0 24 24"><path d="M18 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+        </div>
+        <div class="book-info">
+          <div class="book-title">The Alchemist</div>
+          <div class="book-author">Paulo Coelho</div>
+          <div class="book-badges">
+            <span class="book-badge location">Bedroom / Shelf 1</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Book 6 -->
+      <div class="book-row" onclick="toggleBook(this)">
+        <div class="book-checkbox checked" data-checked="true">
+          <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        </div>
+        <div class="book-cover">
+          <svg viewBox="0 0 24 24"><path d="M18 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+        </div>
+        <div class="book-info">
+          <div class="book-title">Project Hail Mary</div>
+          <div class="book-author">Andy Weir</div>
+          <div class="book-badges">
+            <span class="book-badge here">Already here</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="selection-bar" id="selection-bar">
+      <span class="selection-bar__text" id="selection-text">2 books selected</span>
+      <button id="assign-btn" onclick="showAssignConfirm()">Assign to Shelf 1</button>
+    </div>
+  </div>
+
+  <!-- Snackbar -->
+  <div class="snackbar" id="snackbar">
+    <span id="snackbar-msg">Assigned</span>
+    <button onclick="viewAssigned()">View</button>
+  </div>
+
+  <!-- Assign confirmation dialog -->
+  <div class="dialog-overlay" id="assign-dialog">
+    <div class="dialog">
+      <h4 id="assign-dialog-title">Move 2 books to Shelf 1?</h4>
+      <ul id="assign-dialog-list">
+        <li>1 book will be moved from another location</li>
+        <li>1 book currently has no location</li>
+      </ul>
+      <div class="dialog-actions">
+        <button class="btn-text" onclick="closeAssignDialog()">Cancel</button>
+        <button class="btn-filled" onclick="confirmAssign()">Assign</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete shelf dialog -->
+  <div class="dialog-overlay" id="delete-dialog">
+    <div class="dialog">
+      <h4 id="delete-title">Delete Shelf?</h4>
+      <p id="delete-msg">Books will have their location set to None.</p>
+      <div class="dialog-actions">
+        <button class="btn-text" onclick="closeDeleteDialog()">Cancel</button>
+        <button class="btn-filled" style="background:var(--md-sys-color-error)" onclick="closeDeleteDialog()">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add location dialog -->
+  <div class="dialog-overlay" id="add-dialog">
+    <div class="dialog">
+      <h4>Add Location</h4>
+      <input class="dialog-field" placeholder="Name (e.g. Kitchen)" id="add-name">
+      <div class="dialog-actions">
+        <button class="btn-text" onclick="closeAddDialog()">Cancel</button>
+        <button class="btn-text" style="color:var(--md-sys-color-primary)" onclick="closeAddDialog()">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="gesture-nav"><div class="gesture-pill"></div></div>
+</div>
+
+<script>
+  let currentShelf = '';
+  let selectedCount = 2; // 2 pre-selected "already here"
+
+  function goBack() { window.location.href = 'catalog.html'; }
+
+  // Tree toggle (skips .tree-actions siblings)
+  function toggleTree(item) {
+    const toggle = item.querySelector('.tree-toggle');
+    let sibling = item.nextElementSibling;
+    while (sibling && !sibling.classList.contains('tree-children')) {
+      sibling = sibling.nextElementSibling;
+    }
+    if (sibling && sibling.classList.contains('tree-children')) {
+      toggle.classList.toggle('open');
+      sibling.classList.toggle('open');
+    }
+  }
+
+  // Actions for any tree level (room, cupboard, shelf)
+  function toggleActions(item) {
+    document.querySelectorAll('.tree-actions.open').forEach(el => {
+      if (el !== item.nextElementSibling) el.classList.remove('open');
+    });
+    const actions = item.nextElementSibling;
+    if (actions && actions.classList.contains('tree-actions')) {
+      actions.classList.toggle('open');
+    }
+  }
+
+  function editName(name) { alert('Edit name: ' + name); }
+  function viewBooks(name, count) { window.location.href = 'catalog.html?shelf=' + encodeURIComponent(name); }
+  function showDelete(name) {
+    document.getElementById('delete-title').textContent = 'Delete ' + name + '?';
+    document.getElementById('delete-msg').textContent = 'Books in this location will have their location set to None.';
+    document.getElementById('delete-dialog').classList.add('open');
+  }
+
+  // Book picker
+  function openPicker(shelfName) {
+    currentShelf = shelfName;
+    document.getElementById('picker-title').textContent = 'Assign to ' + shelfName;
+    document.getElementById('assign-btn').textContent = 'Assign to ' + shelfName;
+    document.getElementById('picker-overlay').classList.add('open');
+    updateSelectionBar();
+  }
+  function closePicker() {
+    document.getElementById('picker-overlay').classList.remove('open');
+  }
+  function toggleBook(row) {
+    const cb = row.querySelector('.book-checkbox');
+    const checked = cb.getAttribute('data-checked') === 'true';
+    cb.setAttribute('data-checked', !checked);
+    cb.classList.toggle('checked', !checked);
+    selectedCount += checked ? -1 : 1;
+    updateSelectionBar();
+  }
+  function updateSelectionBar() {
+    const btn = document.getElementById('assign-btn');
+    document.getElementById('selection-text').textContent = selectedCount + ' books selected';
+    if (selectedCount === 0) {
+      btn.disabled = true;
+      btn.textContent = 'Select books to assign';
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Assign to ' + currentShelf;
+    }
+  }
+  function toggleFilter(chip) {
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+  }
+
+  // Assign confirmation
+  function showAssignConfirm() {
+    document.getElementById('assign-dialog-title').textContent = 'Move ' + selectedCount + ' books to ' + currentShelf + '?';
+    document.getElementById('assign-dialog').classList.add('open');
+  }
+  function closeAssignDialog() {
+    document.getElementById('assign-dialog').classList.remove('open');
+  }
+  function confirmAssign() {
+    closeAssignDialog();
+    closePicker();
+    showSnackbar(selectedCount + ' books assigned to ' + currentShelf + '.');
+  }
+  function showSnackbar(msg) {
+    const sb = document.getElementById('snackbar');
+    document.getElementById('snackbar-msg').textContent = msg;
+    sb.classList.add('open');
+    setTimeout(() => sb.classList.remove('open'), 3500);
+  }
+  function viewAssigned() {
+    window.location.href = 'catalog.html?shelf=' + encodeURIComponent(currentShelf);
+  }
+
+  // Dialogs
+  function showAddDialog() { document.getElementById('add-dialog').classList.add('open'); }
+  function closeAddDialog() { document.getElementById('add-dialog').classList.remove('open'); }
+  function closeDeleteDialog() { document.getElementById('delete-dialog').classList.remove('open'); }
+</script>
+</body>
+</html>

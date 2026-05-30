@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>The Little Library — Setup</title>
+<style>
+  :root {
+    --md-sys-color-primary: #5D4037;
+    --md-sys-color-on-primary: #FFFFFF;
+    --md-sys-color-primary-container: #EADDCF;
+    --md-sys-color-on-primary-container: #3E2B23;
+    --md-sys-color-secondary: #FFA000;
+    --md-sys-color-on-secondary: #FFFFFF;
+    --md-sys-color-secondary-container: #FFE0B2;
+    --md-sys-color-surface: #FFF8F0;
+    --md-sys-color-surface-variant: #F2ECE6;
+    --md-sys-color-background: #FAFAF5;
+    --md-sys-color-on-surface: #1C1B1F;
+    --md-sys-color-on-surface-variant: #49454F;
+    --md-sys-color-outline: #79747E;
+    --md-sys-color-outline-variant: #CAC4D0;
+    --md-sys-color-error: #B3261E;
+    --md-sys-color-error-container: #F9DEDC;
+    --md-sys-color-on-error-container: #410E0B;
+    --md-sys-color-amber: #FF9800;
+    --md-sys-color-green: #4CAF50;
+    --md-sys-color-blue: #2196F3;
+    --md-sys-color-red: #F44336;
+    --md-sys-elevation-1: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
+    --md-sys-elevation-2: 0 3px 6px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.12);
+    --font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+  [data-theme="dark"] {
+    --md-sys-color-primary: #D4C4B5;
+    --md-sys-color-on-primary: #3E2B23;
+    --md-sys-color-primary-container: #5D4037;
+    --md-sys-color-on-primary-container: #EADDCF;
+    --md-sys-color-secondary: #FFB945;
+    --md-sys-color-on-secondary: #3E2B23;
+    --md-sys-color-secondary-container: #6B4A2E;
+    --md-sys-color-surface: #2B2930;
+    --md-sys-color-surface-variant: #3E3B44;
+    --md-sys-color-background: #1C1B1F;
+    --md-sys-color-on-surface: #E6E1E5;
+    --md-sys-color-on-surface-variant: #CAC4D0;
+    --md-sys-color-outline: #938F99;
+    --md-sys-color-outline-variant: #49454F;
+    --md-sys-color-error: #F2B8B5;
+    --md-sys-color-error-container: #8C1D18;
+    --md-sys-color-on-error-container: #F9DEDC;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    font-family: var(--font-family);
+    background: #000;
+    color: var(--md-sys-color-on-surface);
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .device-frame {
+    width: 412px;
+    height: 900px;
+    background: var(--md-sys-color-background);
+    border-radius: 24px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  @media (max-width: 440px) {
+    .device-frame { width: 100vw; height: 100vh; border-radius: 0; }
+  }
+  /* Status bar */
+  .status-bar {
+    height: 32px;
+    background: var(--md-sys-color-surface);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+  }
+  /* App bar */
+  .app-bar {
+    height: 56px;
+    background: var(--md-sys-color-surface);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    box-shadow: var(--md-sys-elevation-1);
+    z-index: 10;
+  }
+  .app-bar__title {
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+    flex: 1;
+  }
+  .icon-btn {
+    width: 40px; height: 40px;
+    border-radius: 20px;
+    border: none;
+    background: transparent;
+    color: var(--md-sys-color-on-surface-variant);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .icon-btn:hover, .icon-btn:active { background: rgba(127,127,127,0.12); }
+  /* Content */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    position: relative;
+  }
+  .content::-webkit-scrollbar { display: none; }
+  /* Step indicator */
+  .step-dots {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px 0 8px;
+  }
+  .step-dot {
+    width: 8px; height: 8px;
+    border-radius: 4px;
+    background: var(--md-sys-color-outline-variant);
+    transition: all 0.3s ease;
+  }
+  .step-dot.active {
+    width: 24px;
+    background: var(--md-sys-color-primary);
+  }
+  /* Wizard steps */
+  .wizard-step {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px;
+    animation: fadeIn 0.3s ease;
+    min-height: 100%;
+  }
+  .wizard-step.active { display: flex; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .logo {
+    width: 96px; height: 96px;
+    background: var(--md-sys-color-primary-container);
+    border-radius: 24px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 24px;
+  }
+  .logo svg { width: 56px; height: 56px; fill: var(--md-sys-color-primary); }
+  .heading {
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .subheading {
+    font-size: 14px;
+    color: var(--md-sys-color-on-surface-variant);
+    text-align: center;
+    line-height: 1.5;
+    max-width: 280px;
+  }
+  .btn {
+    width: 100%;
+    height: 48px;
+    border-radius: 24px;
+    border: none;
+    font-size: 15px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: box-shadow 0.2s, transform 0.1s;
+    margin-top: 16px;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn-filled {
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    box-shadow: var(--md-sys-elevation-1);
+  }
+  .btn-filled:hover { box-shadow: var(--md-sys-elevation-2); }
+  .btn-tonal {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+  }
+  .btn-outlined {
+    background: transparent;
+    color: var(--md-sys-color-primary);
+    border: 1.5px solid var(--md-sys-color-outline);
+  }
+  .btn-text {
+    background: transparent;
+    color: var(--md-sys-color-primary);
+    height: 40px;
+  }
+  .google-btn {
+    background: #fff;
+    color: #3c4043;
+    border: 1px solid #dadce0;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+  [data-theme="dark"] .google-btn { background: #2b2930; color: #e6e1e5; border-color: #49454f; }
+  .link-text {
+    font-size: 14px;
+    color: var(--md-sys-color-primary);
+    text-decoration: none;
+    margin-top: 16px;
+    cursor: pointer;
+    background: none; border: none; font-family: inherit;
+  }
+  .link-text:hover { text-decoration: underline; }
+  /* Cards */
+  .card {
+    width: 100%;
+    background: var(--md-sys-color-surface-variant);
+    border-radius: 16px;
+    padding: 16px;
+    margin-top: 12px;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .card:hover { border-color: var(--md-sys-color-outline); }
+  .card.selected {
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-primary-container);
+  }
+  .card-title { font-size: 16px; font-weight: 500; color: var(--md-sys-color-on-surface); }
+  .card-subtitle { font-size: 13px; color: var(--md-sys-color-on-surface-variant); margin-top: 4px; }
+  /* Form fields */
+  .field {
+    width: 100%;
+    margin-top: 16px;
+  }
+  .field-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--md-sys-color-primary);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+  }
+  .field-input {
+    width: 100%;
+    height: 48px;
+    border-radius: 8px;
+    border: 1.5px solid var(--md-sys-color-outline);
+    background: var(--md-sys-color-surface);
+    color: var(--md-sys-color-on-surface);
+    padding: 0 16px;
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .field-input:focus { border-color: var(--md-sys-color-primary); }
+  .field-input::placeholder { color: var(--md-sys-color-outline); }
+  .field-error {
+    font-size: 12px;
+    color: var(--md-sys-color-error);
+    margin-top: 4px;
+    display: none;
+  }
+  .field-error.visible { display: block; }
+  /* Progress */
+  .progress-container {
+    width: 100%;
+    margin-top: 32px;
+  }
+  .progress-track {
+    height: 4px;
+    background: var(--md-sys-color-outline-variant);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--md-sys-color-primary);
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.4s ease;
+  }
+  .progress-text {
+    font-size: 14px;
+    color: var(--md-sys-color-on-surface-variant);
+    text-align: center;
+    margin-top: 12px;
+  }
+  .checkmark {
+    width: 80px; height: 80px;
+    background: var(--md-sys-color-green);
+    border-radius: 40px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 24px auto;
+  }
+  .checkmark svg { width: 40px; height: 40px; fill: #fff; }
+  .sync-stats {
+    font-size: 14px;
+    color: var(--md-sys-color-on-surface-variant);
+    text-align: center;
+    margin-top: 8px;
+  }
+  /* Bottom actions */
+  .bottom-actions {
+    padding: 16px 24px 32px;
+    display: flex;
+    gap: 12px;
+  }
+  .bottom-actions .btn { margin-top: 0; }
+  .spacer { flex: 1; }
+  /* Nav bar */
+  .gesture-nav {
+    height: 20px;
+    background: var(--md-sys-color-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 8px;
+  }
+  .gesture-pill {
+    width: 108px;
+    height: 4px;
+    background: var(--md-sys-color-on-surface);
+    opacity: 0.4;
+    border-radius: 2px;
+  }
+  /* Theme toggle */
+  .theme-toggle {
+    position: absolute;
+    top: 40px;
+    right: 16px;
+    z-index: 100;
+    width: 40px; height: 40px;
+    border-radius: 20px;
+    border: none;
+    background: var(--md-sys-color-surface-variant);
+    color: var(--md-sys-color-on-surface);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--md-sys-elevation-1);
+  }
+</style>
+</head>
+<body>
+<div class="device-frame">
+  <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 109 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 01-4.4 2.26 5.403 5.403 0 01-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+  </button>
+  <div class="status-bar">
+    <span>9:41</span>
+    <span>🔋 85%</span>
+  </div>
+  <div class="app-bar">
+    <span class="app-bar__title">The Little Library</span>
+  </div>
+  <div class="content">
+    <div class="step-dots">
+      <div class="step-dot active" id="dot-0"></div>
+      <div class="step-dot" id="dot-1"></div>
+      <div class="step-dot" id="dot-2"></div>
+    </div>
+
+    <!-- Step 1: Welcome -->
+    <div class="wizard-step active" id="step-0">
+      <div class="logo">
+        <svg viewBox="0 0 24 24"><path d="M18 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+      </div>
+      <h1 class="heading">Welcome to The Little Library</h1>
+      <p class="subheading">Catalog your family's books. Never buy a duplicate again.</p>
+      <button class="btn google-btn" style="margin-top:32px" onclick="signInGoogle()">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Sign in with Google
+      </button>
+      <button class="link-text" onclick="skipSignIn()">Skip for now</button>
+      <div id="signin-error" class="field-error" style="margin-top:12px;text-align:center">Sign-in failed. Please try again.</div>
+    </div>
+
+    <!-- Step 2: Connect -->
+    <div class="wizard-step" id="step-1">
+      <div style="width:100%;margin-bottom:8px">
+        <h1 class="heading" style="text-align:left">Connect to your family library</h1>
+        <p class="subheading" style="text-align:left;max-width:none;margin-top:8px">Choose how you want to get started.</p>
+      </div>
+
+      <div class="card" id="card-link" onclick="selectCard('card-link')">
+        <div class="card-title">I have a link or QR code</div>
+        <div class="card-subtitle">Paste an invite link or scan a QR code from a family member.</div>
+        <div id="link-panel" style="display:none;margin-top:16px">
+          <div style="display:flex;gap:8px;align-items:stretch">
+            <input class="field-input" placeholder="Paste invite link here" id="invite-link" style="flex:1;margin-top:0">
+            <button class="icon-btn" style="width:48px;height:48px;border-radius:12px;background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);flex-shrink:0" onclick="event.stopPropagation();scanQR()" title="Scan QR Code">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3 11h8V3H3v8zm2-6h4v4H5V5zM3 21h8v-8H3v8zm2-6h4v4H5v-4zM13 3v8h8V3h-8zm6 6h-4V5h4v4zM13 13h2v2h-2zM15 15h2v2h-2zM13 17h2v2h-2zM17 13h2v2h-2zM19 15h2v2h-2zM17 17h2v2h-2zM15 19h2v2h-2zM19 19h2v2h-2z"/></svg>
+            </button>
+          </div>
+          <div class="field-error" id="link-error">This link doesn't work. Ask a family member for a new one.</div>
+          <button class="btn btn-filled" style="margin-top:12px" onclick="event.stopPropagation();joinLibrary()">Join Library</button>
+        </div>
+      </div>
+
+      <div class="card" id="card-create" onclick="selectCard('card-create')">
+        <div class="card-title">Create a new library</div>
+        <div class="card-subtitle">Start fresh and invite your family later.</div>
+        <div id="create-panel" style="display:none;margin-top:16px">
+          <button class="btn btn-filled" onclick="event.stopPropagation();createLibrary()">Create Library</button>
+        </div>
+      </div>
+
+      <div id="share-family-panel" style="display:none;width:100%;margin-top:12px">
+        <div class="card" style="background:var(--md-sys-color-secondary-container);border-color:var(--md-sys-color-secondary)">
+          <div class="card-title">Share with family?</div>
+          <div class="card-subtitle">Invite others to collaborate on your library.</div>
+          <input class="field-input" placeholder="Enter email addresses" id="invite-emails" style="margin-top:12px">
+          <button class="btn btn-tonal" style="margin-top:12px;background:var(--md-sys-color-secondary);color:var(--md-sys-color-on-secondary)" onclick="sendInvites()">Send Invites</button>
+          <button class="link-text" style="margin-top:8px;display:block;width:100%;text-align:center" onclick="skipInvites()">Skip for now</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Sync -->
+    <div class="wizard-step" id="step-2">
+      <div id="sync-progress">
+        <div class="logo" style="margin-top:32px">
+          <svg viewBox="0 0 24 24" class="spin"><path d="M12 6v3l4-4-4-4v3a8 8 0 00-8 8c0 1.57.46 3.03 1.24 4.26L6.7 14.8A5.87 5.87 0 016 12a6 6 0 016-6zm6.76 1.74L17.3 9.2c.44.97.7 2.05.7 3.2a6 6 0 01-6 6v-3l-4 4 4 4v-3a8 8 0 008-8c0-1.57-.46-3.03-1.24-4.26z"/></svg>
+        </div>
+        <h1 class="heading">Syncing your library…</h1>
+        <div class="progress-container">
+          <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+          <p class="progress-text" id="progress-text">Downloading catalog…</p>
+        </div>
+      </div>
+      <div id="sync-done" style="display:none;flex-direction:column;align-items:center;width:100%">
+        <div class="checkmark">
+          <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        </div>
+        <h1 class="heading">You're all set!</h1>
+        <p class="sync-stats">Synced <strong>847 books</strong>, <strong>12 locations</strong></p>
+        <button class="btn btn-filled" style="margin-top:32px" onclick="goToCatalog()">Start Browsing</button>
+      </div>
+    </div>
+  </div>
+  <div class="gesture-nav"><div class="gesture-pill"></div></div>
+</div>
+
+<style>
+  .spin { animation: spin 1.2s linear infinite; transform-origin: center; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<script>
+  let currentStep = 0;
+  const totalSteps = 3;
+
+  function updateDots() {
+    for (let i = 0; i < totalSteps; i++) {
+      document.getElementById('dot-' + i).classList.toggle('active', i === currentStep);
+    }
+  }
+
+  function showStep(n) {
+    document.querySelectorAll('.wizard-step').forEach((el, i) => {
+      el.classList.toggle('active', i === n);
+    });
+    currentStep = n;
+    updateDots();
+  }
+
+  function nextStep() {
+    if (currentStep < totalSteps - 1) showStep(currentStep + 1);
+    if (currentStep === 2) startSync();
+  }
+
+  function prevStep() {
+    if (currentStep > 0) showStep(currentStep - 1);
+  }
+
+  function signInGoogle() {
+    // Simulate sign-in then advance
+    document.getElementById('signin-error').classList.remove('visible');
+    setTimeout(() => nextStep(), 600);
+  }
+
+  function skipSignIn() {
+    document.getElementById('signin-error').classList.remove('visible');
+    setTimeout(() => nextStep(), 300);
+  }
+
+  let selectedCardId = null;
+  function selectCard(id) {
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+    document.getElementById(id).classList.add('selected');
+    selectedCardId = id;
+    document.getElementById('link-panel').style.display = id === 'card-link' ? 'block' : 'none';
+    document.getElementById('create-panel').style.display = id === 'card-create' ? 'block' : 'none';
+    document.getElementById('share-family-panel').style.display = 'none';
+    document.getElementById('link-error').classList.remove('visible');
+  }
+
+  function scanQR() {
+    const input = document.getElementById('invite-link');
+    input.placeholder = 'Opening camera…';
+    setTimeout(() => {
+      input.value = 'https://littlelibrary.app/join/family-abc123';
+      input.placeholder = 'Paste invite link here';
+    }, 1200);
+  }
+
+  function joinLibrary() {
+    const link = document.getElementById('invite-link').value.trim();
+    const error = document.getElementById('link-error');
+    if (!link) {
+      error.textContent = 'Please paste a link or scan a QR code.';
+      error.classList.add('visible');
+      return;
+    }
+    if (!link.includes('littlelibrary.app')) {
+      error.classList.add('visible');
+      return;
+    }
+    error.classList.remove('visible');
+    showStep(2);
+    startSync();
+  }
+
+  function createLibrary() {
+    document.getElementById('create-panel').style.display = 'none';
+    document.getElementById('share-family-panel').style.display = 'block';
+  }
+
+  function sendInvites() {
+    const emails = document.getElementById('invite-emails').value.trim();
+    if (!emails) {
+      document.getElementById('invite-emails').focus();
+      return;
+    }
+    showStep(2);
+    startSync();
+  }
+
+  function skipInvites() {
+    showStep(2);
+    startSync();
+  }
+
+  function startSync() {
+    const fill = document.getElementById('progress-fill');
+    const text = document.getElementById('progress-text');
+    let pct = 0;
+    const msgs = ['Downloading catalog…','Organizing shelves…','Fetching covers…','Finalizing…'];
+    const interval = setInterval(() => {
+      pct += Math.random() * 18 + 4;
+      if (pct > 100) pct = 100;
+      fill.style.width = pct + '%';
+      text.textContent = msgs[Math.min(Math.floor(pct / 25), 3)];
+      if (pct >= 100) {
+        clearInterval(interval);
+        setTimeout(() => {
+          document.getElementById('sync-progress').style.display = 'none';
+          document.getElementById('sync-done').style.display = 'flex';
+        }, 400);
+      }
+    }, 400);
+  }
+
+  function goToCatalog() {
+    window.location.href = 'catalog.html';
+  }
+
+  function toggleTheme() {
+    const root = document.documentElement;
+    const current = root.getAttribute('data-theme');
+    root.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+    localStorage.setItem('theme', current === 'dark' ? 'light' : 'dark');
+  }
+
+  // Restore theme
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+  else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }
+</script>
+</body>
+</html>

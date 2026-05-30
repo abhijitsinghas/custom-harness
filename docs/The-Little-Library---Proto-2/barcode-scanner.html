@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>The Little Library — Barcode Scanner</title>
+<style>
+  :root {
+    --md-sys-color-primary: #5D4037;
+    --md-sys-color-on-primary: #FFFFFF;
+    --md-sys-color-primary-container: #EADDCF;
+    --md-sys-color-on-primary-container: #3E2B23;
+    --md-sys-color-secondary: #FFA000;
+    --md-sys-color-on-secondary: #FFFFFF;
+    --md-sys-color-secondary-container: #FFE0B2;
+    --md-sys-color-surface: #FFF8F0;
+    --md-sys-color-surface-variant: #F2ECE6;
+    --md-sys-color-background: #FAFAF5;
+    --md-sys-color-on-surface: #1C1B1F;
+    --md-sys-color-on-surface-variant: #49454F;
+    --md-sys-color-outline: #79747E;
+    --md-sys-color-outline-variant: #CAC4D0;
+    --md-sys-color-error: #B3261E;
+    --md-sys-color-green: #4CAF50;
+    --md-sys-color-blue: #2196F3;
+    --md-sys-color-red: #F44336;
+    --md-sys-elevation-1: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
+    --md-sys-elevation-2: 0 3px 6px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.12);
+    --font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+  [data-theme="dark"] {
+    --md-sys-color-primary: #D4C4B5;
+    --md-sys-color-on-primary: #3E2B23;
+    --md-sys-color-primary-container: #5D4037;
+    --md-sys-color-on-primary-container: #EADDCF;
+    --md-sys-color-secondary: #FFB945;
+    --md-sys-color-on-secondary: #3E2B23;
+    --md-sys-color-secondary-container: #6B4A2E;
+    --md-sys-color-surface: #2B2930;
+    --md-sys-color-surface-variant: #3E3B44;
+    --md-sys-color-background: #1C1B1F;
+    --md-sys-color-on-surface: #E6E1E5;
+    --md-sys-color-on-surface-variant: #CAC4D0;
+    --md-sys-color-outline: #938F99;
+    --md-sys-color-outline-variant: #49454F;
+    --md-sys-color-error: #F2B8B5;
+    --md-sys-color-green: #4CAF50;
+    --md-sys-color-blue: #2196F3;
+    --md-sys-color-red: #F44336;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    font-family: var(--font-family);
+    background: #000;
+    color: var(--md-sys-color-on-surface);
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .device-frame {
+    width: 412px;
+    height: 900px;
+    background: #000;
+    border-radius: 24px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  @media (max-width: 440px) {
+    .device-frame { width: 100vw; height: 100vh; border-radius: 0; }
+  }
+  .status-bar {
+    height: 32px;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #fff;
+    position: absolute; top: 0; left: 0; right: 0;
+    z-index: 10;
+  }
+  .camera-view {
+    flex: 1;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  /* Simulated camera feed pattern */
+  .camera-view::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.03) 2px,
+      rgba(0,0,0,0.03) 4px
+    );
+  }
+  /* Viewfinder brackets */
+  .viewfinder {
+    width: 260px;
+    height: 160px;
+    position: relative;
+  }
+  .corner {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    border-color: var(--md-sys-color-primary);
+    border-style: solid;
+    transition: all 0.3s ease;
+  }
+  .corner.tl { top: 0; left: 0; border-width: 4px 0 0 4px; }
+  .corner.tr { top: 0; right: 0; border-width: 4px 4px 0 0; }
+  .corner.bl { bottom: 0; left: 0; border-width: 0 0 4px 4px; }
+  .corner.br { bottom: 0; right: 0; border-width: 0 4px 4px 0; }
+  .scan-line {
+    position: absolute;
+    left: 0; right: 0;
+    height: 2px;
+    background: var(--md-sys-color-primary);
+    box-shadow: 0 0 8px var(--md-sys-color-primary);
+    animation: scan 2.5s ease-in-out infinite;
+    opacity: 0.8;
+  }
+  @keyframes scan {
+    0%, 100% { top: 0; }
+    50% { top: 100%; }
+  }
+  .viewfinder-label {
+    position: absolute;
+    bottom: -36px;
+    left: 0; right: 0;
+    text-align: center;
+    color: rgba(255,255,255,0.8);
+    font-size: 13px;
+  }
+  /* Top controls */
+  .top-controls {
+    position: absolute;
+    top: 48px;
+    right: 16px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .top-controls button {
+    width: 44px; height: 44px;
+    border-radius: 22px;
+    border: none;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+  }
+  .top-controls button svg { width: 22px; height: 22px; fill: currentColor; }
+  /* Bottom controls */
+  .bottom-controls {
+    position: absolute;
+    bottom: 40px;
+    left: 0; right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    z-index: 10;
+  }
+  .shutter-btn {
+    width: 72px; height: 72px;
+    border-radius: 36px;
+    border: 4px solid rgba(255,255,255,0.4);
+    background: #fff;
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+  .shutter-btn:active { transform: scale(0.92); }
+  .manual-link {
+    color: rgba(255,255,255,0.9);
+    font-size: 14px;
+    text-decoration: underline;
+    cursor: pointer;
+    background: none; border: none; font-family: inherit;
+  }
+  /* Detected barcode state */
+  .detected-bar {
+    position: absolute;
+    bottom: 140px;
+    left: 16px; right: 16px;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(8px);
+    border-radius: 16px;
+    padding: 16px;
+    color: #fff;
+    display: none;
+    z-index: 10;
+  }
+  .detected-bar.visible { display: block; animation: slideUp 0.3s ease; }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .detected-bar__code { font-size: 18px; font-weight: 500; font-family: monospace; }
+  .detected-bar__meta { font-size: 13px; color: rgba(255,255,255,0.7); margin-top: 4px; }
+  .detected-bar__actions { display: flex; gap: 8px; margin-top: 12px; }
+  .detected-bar__actions button {
+    flex: 1;
+    height: 40px;
+    border-radius: 20px;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .btn-white { background: #fff; color: #1a1a1a; }
+  .btn-outline-white { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,0.5); }
+  /* Loading overlay */
+  .lookup-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    z-index: 20;
+    color: #fff;
+  }
+  .lookup-overlay.open { display: flex; }
+  .lookup-overlay .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid rgba(255,255,255,0.2);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  /* Back button overlay */
+  .back-overlay {
+    position: absolute;
+    top: 48px;
+    left: 12px;
+    z-index: 10;
+  }
+  .back-overlay button {
+    width: 40px; height: 40px;
+    border-radius: 20px;
+    border: none;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+  }
+  .gesture-nav {
+    height: 20px;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 8px;
+  }
+  .gesture-pill {
+    width: 108px;
+    height: 4px;
+    background: #fff;
+    opacity: 0.4;
+    border-radius: 2px;
+  }
+</style>
+</head>
+<body>
+<div class="device-frame">
+  <div class="status-bar"><span>9:41</span><span>🔋 85%</span></div>
+
+  <div class="camera-view">
+    <div class="back-overlay">
+      <button onclick="goBack()" aria-label="Back">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+      </button>
+    </div>
+
+    <div class="top-controls">
+      <button onclick="toggleTorch()" aria-label="Torch">
+        <svg viewBox="0 0 24 24"><path d="M6 2v6h2v12c0 1.1.9 2 2 2h4a2 2 0 002-2V8h2V2H6zm4 14h4v-4h-4v4z"/></svg>
+      </button>
+    </div>
+
+    <div class="viewfinder">
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+      <div class="scan-line"></div>
+      <div class="viewfinder-label">Position barcode within frame</div>
+    </div>
+
+    <div class="detected-bar" id="detected-bar">
+      <div class="detected-bar__code" id="barcode-value">978-0-06-231500-7</div>
+      <div class="detected-bar__meta">ISBN-13 detected</div>
+      <div class="detected-bar__actions">
+        <button class="btn-outline-white" onclick="dismissDetected()">Dismiss</button>
+        <button class="btn-white" onclick="lookupBook()">Lookup Book</button>
+      </div>
+    </div>
+
+    <div class="bottom-controls">
+      <button class="shutter-btn" onclick="simulateScan()" aria-label="Scan"></button>
+      <button class="manual-link" onclick="enterManual()">Enter ISBN manually</button>
+    </div>
+
+    <div class="lookup-overlay" id="lookup-overlay">
+      <div class="spinner"></div>
+      <div style="font-size:16px;font-weight:500">Looking up book…</div>
+      <div style="font-size:13px;opacity:0.7;margin-top:6px">Searching Google Books</div>
+    </div>
+  </div>
+
+  <div class="gesture-nav"><div class="gesture-pill"></div></div>
+</div>
+
+<script>
+  function goBack() { window.location.href = 'catalog.html'; }
+  function toggleTorch() { alert('Torch toggled'); }
+  function enterManual() { window.location.href = 'add-book.html?manual=isbn'; }
+  function dismissDetected() { document.getElementById('detected-bar').classList.remove('visible'); }
+  function lookupBook() {
+    document.getElementById('lookup-overlay').classList.add('open');
+    setTimeout(() => {
+      document.getElementById('lookup-overlay').classList.remove('open');
+      window.location.href = 'add-book.html?enrich=auto';
+    }, 2000);
+  }
+  function simulateScan() {
+    document.getElementById('barcode-value').textContent = '978-0-06-231500-7';
+    document.getElementById('detected-bar').classList.add('visible');
+  }
+</script>
+</body>
+</html>

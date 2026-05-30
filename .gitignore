@@ -1,0 +1,37 @@
+# Flutter / Dart
+**/doc/api/
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+coverage/
+
+# Generated files (run build_runner to regenerate)
+*.g.dart
+*.freezed.dart
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+.DS_Store
+
+# Android Studio
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# iOS
+**/ios/Flutter/.last_build_id
+app.*.symbols
+app.*.map.json
+
+# Other
+*.class
+*.log
+*.pyc
+.packages
+.pub/
+build/

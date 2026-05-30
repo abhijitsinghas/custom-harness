@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>The Little Library — Catalog</title>
+<style>
+  :root {
+    --md-sys-color-primary: #5D4037;
+    --md-sys-color-on-primary: #FFFFFF;
+    --md-sys-color-primary-container: #EADDCF;
+    --md-sys-color-on-primary-container: #3E2B23;
+    --md-sys-color-secondary: #FFA000;
+    --md-sys-color-on-secondary: #FFFFFF;
+    --md-sys-color-secondary-container: #FFE0B2;
+    --md-sys-color-surface: #FFF8F0;
+    --md-sys-color-surface-variant: #F2ECE6;
+    --md-sys-color-background: #FAFAF5;
+    --md-sys-color-on-surface: #1C1B1F;
+    --md-sys-color-on-surface-variant: #49454F;
+    --md-sys-color-outline: #79747E;
+    --md-sys-color-outline-variant: #CAC4D0;
+    --md-sys-color-error: #B3261E;
+    --md-sys-color-error-container: #F9DEDC;
+    --md-sys-color-on-error-container: #410E0B;
+    --md-sys-color-amber: #FF9800;
+    --md-sys-color-green: #4CAF50;
+    --md-sys-color-blue: #2196F3;
+    --md-sys-color-red: #F44336;
+    --md-sys-elevation-1: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
+    --md-sys-elevation-2: 0 3px 6px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.12);
+    --md-sys-elevation-fab: 0 4px 8px rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.14);
+    --font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+  [data-theme="dark"] {
+    --md-sys-color-primary: #D4C4B5;
+    --md-sys-color-on-primary: #3E2B23;
+    --md-sys-color-primary-container: #5D4037;
+    --md-sys-color-on-primary-container: #EADDCF;
+    --md-sys-color-secondary: #FFB945;
+    --md-sys-color-on-secondary: #3E2B23;
+    --md-sys-color-secondary-container: #6B4A2E;
+    --md-sys-color-surface: #2B2930;
+    --md-sys-color-surface-variant: #3E3B44;
+    --md-sys-color-background: #1C1B1F;
+    --md-sys-color-on-surface: #E6E1E5;
+    --md-sys-color-on-surface-variant: #CAC4D0;
+    --md-sys-color-outline: #938F99;
+    --md-sys-color-outline-variant: #49454F;
+    --md-sys-color-error: #F2B8B5;
+    --md-sys-color-error-container: #8C1D18;
+    --md-sys-color-on-error-container: #F9DEDC;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    font-family: var(--font-family);
+    background: #000;
+    color: var(--md-sys-color-on-surface);
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .device-frame {
+    width: 412px;
+    height: 900px;
+    background: var(--md-sys-color-background);
+    border-radius: 24px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  @media (max-width: 440px) {
+    .device-frame { width: 100vw; height: 100vh; border-radius: 0; }
+  }
+  .status-bar {
+    height: 32px;
+    background: var(--md-sys-color-surface);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+  }
+  .app-bar {
+    height: 56px;
+    background: var(--md-sys-color-surface);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 8px;
+    box-shadow: var(--md-sys-elevation-1);
+    z-index: 10;
+  }
+  .app-bar__title {
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+    flex: 1;
+  }
+  .icon-btn {
+    width: 40px; height: 40px;
+    border-radius: 20px;
+    border: none;
+    background: transparent;
+    color: var(--md-sys-color-on-surface-variant);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .icon-btn:hover, .icon-btn:active { background: rgba(127,127,127,0.12); }
+  /* Sync status */
+  .sync-bar {
+    height: 32px;
+    background: var(--md-sys-color-green);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 500;
+    gap: 6px;
+  }
+  .sync-bar.amber { background: var(--md-sys-color-amber); color: #3E2B23; }
+  .sync-bar.red { background: var(--md-sys-color-red); }
+  /* Search */
+  .search-wrap {
+    padding: 12px 16px 8px;
+    background: var(--md-sys-color-surface);
+  }
+  .search-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--md-sys-color-surface-variant);
+    border-radius: 28px;
+    padding: 0 16px;
+    height: 48px;
+  }
+  .search-field input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 15px;
+    font-family: inherit;
+    color: var(--md-sys-color-on-surface);
+    outline: none;
+  }
+  .search-field input::placeholder { color: var(--md-sys-color-outline); }
+  .search-field select {
+    border: none;
+    background: transparent;
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--md-sys-color-on-surface-variant);
+    outline: none;
+  }
+  /* Chips */
+  .chips-row {
+    display: flex;
+    gap: 8px;
+    padding: 8px 16px;
+    overflow-x: auto;
+    background: var(--md-sys-color-surface);
+    scrollbar-width: none;
+  }
+  .chips-row::-webkit-scrollbar { display: none; }
+  .chip {
+    flex-shrink: 0;
+    height: 32px;
+    padding: 0 14px;
+    border-radius: 16px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    background: var(--md-sys-color-surface);
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .chip.active {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    border-color: var(--md-sys-color-primary-container);
+  }
+  .chip svg { width: 14px; height: 14px; }
+  /* Toolbar */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: var(--md-sys-color-surface);
+  }
+  .toolbar select {
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--md-sys-color-on-surface-variant);
+    outline: none;
+  }
+  .toolbar__right { display: flex; gap: 4px; }
+  /* Nudge banner */
+  .nudge {
+    margin: 0 16px 8px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-primary-container);
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .nudge button {
+    background: var(--md-sys-color-secondary);
+    color: #fff;
+    border: none;
+    border-radius: 16px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  /* Content */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px 80px;
+    background: var(--md-sys-color-background);
+  }
+  .content::-webkit-scrollbar { display: none; }
+  /* Grid */
+  .book-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding-top: 8px;
+  }
+  .book-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 8px;
+  }
+  .book-card {
+    background: var(--md-sys-color-surface);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--md-sys-elevation-1);
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.15s, box-shadow 0.2s;
+    user-select: none;
+  }
+  .book-card:active { transform: scale(0.98); }
+  .book-card .cover {
+    aspect-ratio: 3/4;
+    background: var(--md-sys-color-surface-variant);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .book-card .cover img {
+    width: 100%; height: 100%; object-fit: cover;
+  }
+  .book-card .cover-placeholder {
+    width: 48px; height: 48px;
+    opacity: 0.35;
+  }
+  .book-card .info {
+    padding: 10px 12px 12px;
+  }
+  .book-card .title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .book-card .author {
+    font-size: 12px;
+    color: var(--md-sys-color-on-surface-variant);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .book-card .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--md-sys-color-surface-variant);
+    color: var(--md-sys-color-on-surface-variant);
+  }
+  .book-card .badge.checked-out { background: #E3F2FD; color: #1565C0; }
+  [data-theme="dark"] .book-card .badge.checked-out { background: #1565C0; color: #E3F2FD; }
+  .book-card .badge.loaned { background: #FFF3E0; color: #E65100; }
+  [data-theme="dark"] .book-card .badge.loaned { background: #E65100; color: #FFF3E0; }
+  .book-card .badge.overdue { background: #FFEBEE; color: #C62828; }
+  [data-theme="dark"] .book-card .badge.overdue { background: #C62828; color: #FFEBEE; }
+  /* List card variant */
+  .book-card.list {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+  }
+  .book-card.list .cover {
+    width: 56px; height: 74px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .book-card.list .info { padding: 0; flex: 1; }
+  /* Checkbox overlay */
+  .card-check {
+    position: absolute;
+    top: 8px; left: 8px;
+    width: 22px; height: 22px;
+    border-radius: 11px;
+    border: 2px solid rgba(255,255,255,0.9);
+    background: rgba(0,0,0,0.3);
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .card-check.checked {
+    background: var(--md-sys-color-primary);
+    border-color: var(--md-sys-color-primary);
+  }
+  .card-check svg { width: 12px; height: 12px; fill: #fff; }
+  .multi-select .card-check { display: flex; }
+  /* FAB */
+  .fab-wrap {
+    position: absolute;
+    bottom: 28px;
+    right: 20px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
+  }
+  .fab {
+    width: 56px; height: 56px;
+    border-radius: 16px;
+    border: none;
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--md-sys-elevation-fab);
+    transition: transform 0.25s cubic-bezier(0.4,0,0.2,1), background 0.2s;
+  }
+  .fab:active { transform: scale(0.92); }
+  .fab svg { width: 24px; height: 24px; transition: transform 0.25s; }
+  .fab.open svg { transform: rotate(45deg); }
+  .mini-fab {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    opacity: 0;
+    transform: translateY(16px) scale(0.8);
+    pointer-events: none;
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+  }
+  .fab-wrap.open .mini-fab {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+  .mini-fab__btn {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    border: none;
+    background: var(--md-sys-color-surface);
+    color: var(--md-sys-color-on-surface);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--md-sys-elevation-2);
+  }
+  .mini-fab__label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+    background: var(--md-sys-color-surface);
+    padding: 4px 10px;
+    border-radius: 6px;
+    box-shadow: var(--md-sys-elevation-1);
+  }
+  /* Multi-select bar */
+  .multiselect-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: var(--md-sys-color-surface);
+    padding: 12px 16px 28px;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 15;
+  }
+  .multiselect-bar.visible { display: flex; }
+  .multiselect-bar__count { font-size: 14px; font-weight: 500; }
+  .multiselect-bar__actions { display: flex; gap: 8px; }
+  .multiselect-bar__actions button {
+    background: transparent;
+    border: none;
+    color: var(--md-sys-color-primary);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 6px 10px;
+  }
+  /* Empty state */
+  .empty-state {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    text-align: center;
+  }
+  .empty-state.visible { display: flex; }
+  .empty-state__icon {
+    width: 96px; height: 96px;
+    background: var(--md-sys-color-surface-variant);
+    border-radius: 48px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 16px;
+  }
+  .empty-state__icon svg { width: 48px; height: 48px; fill: var(--md-sys-color-outline); }
+  .empty-state__title { font-size: 18px; font-weight: 500; }
+  .empty-state__body { font-size: 14px; color: var(--md-sys-color-on-surface-variant); margin-top: 6px; }
+  .empty-state__actions { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; width: 100%; max-width: 240px; }
+  .empty-state__actions .btn {
+    width: 100%; height: 44px; border-radius: 22px; border: none;
+    font-size: 14px; font-weight: 500; font-family: inherit; cursor: pointer;
+  }
+  /* Drawer */
+  .drawer-overlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.5);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    z-index: 30;
+  }
+  .drawer-overlay.open { opacity: 1; pointer-events: auto; }
+  .drawer {
+    position: absolute;
+    top: 0; bottom: 0; left: 0;
+    width: 280px;
+    background: var(--md-sys-color-surface);
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+    z-index: 31;
+    display: flex;
+    flex-direction: column;
+  }
+  .drawer.open { transform: translateX(0); }
+  .drawer-header {
+    padding: 24px 16px 16px;
+    background: var(--md-sys-color-primary-container);
+  }
+  .drawer-header__title {
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--md-sys-color-on-primary-container);
+  }
+  .drawer-header__subtitle {
+    font-size: 13px;
+    color: var(--md-sys-color-on-primary-container);
+    opacity: 0.8;
+    margin-top: 4px;
+  }
+  .drawer-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 16px;
+    font-size: 14px;
+    color: var(--md-sys-color-on-surface);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .drawer-item:hover, .drawer-item:active { background: var(--md-sys-color-surface-variant); }
+  .drawer-item svg { width: 22px; height: 22px; fill: var(--md-sys-color-on-surface-variant); }
+  .drawer-divider {
+    height: 1px;
+    background: var(--md-sys-color-outline-variant);
+    margin: 8px 16px;
+  }
+  /* Gesture nav */
+  .gesture-nav {
+    height: 20px;
+    background: var(--md-sys-color-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 8px;
+    z-index: 10;
+  }
+  .gesture-pill {
+    width: 108px;
+    height: 4px;
+    background: var(--md-sys-color-on-surface);
+    opacity: 0.4;
+    border-radius: 2px;
+  }
+  .theme-toggle {
+    position: absolute;
+    top: 40px;
+    right: 16px;
+    z-index: 100;
+    width: 40px; height: 40px;
+    border-radius: 20px;
+    border: none;
+    background: var(--md-sys-color-surface-variant);
+    color: var(--md-sys-color-on-surface);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--md-sys-elevation-1);
+  }
+</style>
+</head>
+<body>
+<div class="device-frame">
+  <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 109 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 01-4.4 2.26 5.403 5.403 0 01-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+  </button>
+  <div class="status-bar"><span>9:41</span><span>🔋 85%</span></div>
+  <div class="app-bar">
+    <button class="icon-btn" onclick="toggleDrawer()" aria-label="Menu">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+    </button>
+    <span class="app-bar__title">The Little Library</span>
+    <button class="icon-btn" aria-label="More" onclick="showSort()">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+    </button>
+  </div>
+
+  <div class="sync-bar" id="sync-bar">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0020 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 004 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+    Synced just now
+  </div>
+
+  <div class="search-wrap">
+    <div class="search-field">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--md-sys-color-outline)"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      <input type="text" placeholder="Search books, authors…" id="search-input" oninput="handleSearch()">
+      <button class="icon-btn" style="width:32px;height:32px" onclick="voiceSearch()" aria-label="Voice search">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+      </button>
+      <select id="rank-mode" onchange="handleSearch()">
+        <option>Relevance</option>
+        <option>Recency</option>
+        <option>Alphabetical</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="chips-row" id="chips-row">
+    <button class="chip" onclick="toggleChip(this)">Genre ▾</button>
+    <button class="chip" onclick="toggleChip(this)">Language ▾</button>
+    <button class="chip" onclick="toggleChip(this)">Location ▾</button>
+    <button class="chip" onclick="toggleChip(this)">Status ▾</button>
+    <button class="chip" onclick="toggleChip(this)">Format ▾</button>
+    <button class="chip" onclick="toggleChip(this)">Condition ▾</button>
+    <button class="chip" onclick="toggleChip(this)">Tags ▾</button>
+  </div>
+
+  <div class="toolbar">
+    <select id="sort-select" onchange="renderBooks()">
+      <option>Title</option>
+      <option>Author</option>
+      <option>Recently Added</option>
+      <option>Purchase Date</option>
+    </select>
+    <div class="toolbar__right">
+      <button class="icon-btn" id="view-grid" onclick="setView('grid')" aria-label="Grid view">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3v8h8V3H3zm6 6H5V5h4v4zm-6 4v8h8v-8H3zm6 6H5v-4h4v4zm4-16v8h8V3h-8zm6 6h-4V5h4v4zm-6 4v8h8v-8h-8zm6 6h-4v-4h4v4z"/></svg>
+      </button>
+      <button class="icon-btn" id="view-list" onclick="setView('list')" aria-label="List view" style="opacity:0.5">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="content" id="content-area">
+    <div class="nudge" id="nudge">
+      <span>12 books need a shelf — tap to assign</span>
+      <button onclick="dismissNudge()">Assign</button>
+    </div>
+
+    <div class="book-grid" id="book-grid"></div>
+    <div class="book-list" id="book-list" style="display:none"></div>
+
+    <div class="empty-state" id="empty-search">
+      <div class="empty-state__icon">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      </div>
+      <div class="empty-state__title">No books match your search</div>
+      <div class="empty-state__body">Try different keywords or adjust your filters.</div>
+    </div>
+
+    <div class="empty-state" id="empty-catalog">
+      <div class="empty-state__icon">
+        <svg viewBox="0 0 24 24"><path d="M18 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+      </div>
+      <div class="empty-state__title">Your library is empty</div>
+      <div class="empty-state__body">Add your first book to get started.</div>
+      <div class="empty-state__actions">
+        <button class="btn" style="background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary)" onclick="goToAdd()">Add Manually</button>
+        <button class="btn" style="background:var(--md-sys-color-surface-variant);color:var(--md-sys-color-on-surface-variant)" onclick="alert('Barcode scanner')">Scan Barcode</button>
+        <button class="btn" style="background:var(--md-sys-color-surface-variant);color:var(--md-sys-color-on-surface-variant)" onclick="alert('Scan cover')">Scan Cover</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAB Speed Dial -->
+  <div class="fab-wrap" id="fab-wrap">
+    <div class="mini-fab" style="transition-delay:0.15s"><span class="mini-fab__label">Add Manually</span><button class="mini-fab__btn" onclick="goToAdd()"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 000-1.41l-2.34-2.34a.996.996 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button></div>
+    <div class="mini-fab" style="transition-delay:0.1s"><span class="mini-fab__label">Scan Barcode</span><button class="mini-fab__btn" onclick="alert('Barcode scanner')"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9.5 6.5v11h1v-11h-1zM6.5 6.5v11h1v-11h-1zM3.5 6.5v11h1v-11h-1zM13.5 6.5v11h1v-11h-1zM16.5 6.5v11h1v-11h-1zM19.5 6.5v11h1v-11h-1zM2 4h20v16H2V4zm2 2v12h16V6H4z"/></svg></button></div>
+    <div class="mini-fab" style="transition-delay:0.05s"><span class="mini-fab__label">Scan Cover</span><button class="mini-fab__btn" onclick="alert('Photo OCR')"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9.4 10.5l4.77-8.26a9.984 9.984 0 00-8.49 2.01l3.66 6.35.06-.1zM21.54 9c-.92-2.92-3.15-5.26-6-6.34L11.88 9h9.66zm.26 2h-7.49l.29.5 4.76 8.25A9.91 9.91 0 0022 12c0-.69-.07-1.35-.2-2zM8.54 12l-3.9-6.75A9.958 9.958 0 002.2 12c0 .69.07 1.35.2 2h7.49l-1.35-2.33V12zM15.46 13.5L11.38 4.68A9.916 9.916 0 0112 4.5c.69 0 1.35.07 2 .2l4.77 8.26-3.31 5.54zM12 13.5h-.07l-3.66 6.35a9.973 9.973 0 008.49-2.01L12.07 13.5H12z"/></svg></button></div>
+    <div class="mini-fab" style="transition-delay:0s"><span class="mini-fab__label">Voice Input</span><button class="mini-fab__btn" onclick="alert('Voice input')"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg></button></div>
+    <button class="fab" id="main-fab" onclick="toggleFab()" aria-label="Add book">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+    </button>
+  </div>
+
+  <!-- Multi-select bar -->
+  <div class="multiselect-bar" id="multiselect-bar">
+    <span class="multiselect-bar__count" id="select-count">0 selected</span>
+    <div class="multiselect-bar__actions">
+      <button onclick="deleteSelected()">Delete</button>
+      <button onclick="moveSelected()">Change Location</button>
+    </div>
+  </div>
+
+  <!-- Drawer -->
+  <div class="drawer-overlay" id="drawer-overlay" onclick="toggleDrawer()"></div>
+  <div class="drawer" id="drawer">
+    <div class="drawer-header">
+      <div class="drawer-header__title">The Little Library</div>
+      <div class="drawer-header__subtitle">priya@gmail.com</div>
+    </div>
+    <div style="padding-top:8px">
+      <div class="drawer-item" onclick="goToScreen('catalog.html')"><svg viewBox="0 0 24 24"><path d="M18 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>Library</div>
+      <div class="drawer-item" onclick="goToScreen('locations.html')"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z"/></svg>Locations</div>
+      <div class="drawer-item" onclick="goToScreen('recent-activity.html')"><svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>Recent Activity</div>
+      <div class="drawer-item" onclick="goToScreen('active-loans.html')"><svg viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>Active Loans</div>
+      <div class="drawer-divider"></div>
+      <div class="drawer-item" onclick="goToScreen('management.html')"><svg viewBox="0 0 24 24"><path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z"/></svg>Genres</div>
+      <div class="drawer-item" onclick="goToScreen('management.html')"><svg viewBox="0 0 24 24"><path d="M20 10V8h-4V4h-2v4h-4V4H8v4H4v2h4v4H4v2h4v4h2v-4h4v4h2v-4h4v-2h-4v-4h4zm-6 4h-4v-4h4v4z"/></svg>Tags</div>
+      <div class="drawer-item" onclick="goToScreen('management.html')"><svg viewBox="0 0 24 24"><path d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0020.88 4c.41 0 .75.34.75.75 0 .41-.34.75-.75.75A16.24 16.24 0 0112.87 15.07zM20.05 17.98l-2.54-2.54a16.27 16.27 0 01-8.03 3.17c-.41 0-.75-.34-.75-.75s.34-.75.75-.75c2.78 0 5.34-.93 7.41-2.49l-2.52-2.52-5.52 5.52c-.59.59-1.54.59-2.12 0L1.72 11.3a.75.75 0 010-1.06l5.52-5.52-2.51-2.54 1.06-1.06 14.77 14.77-1.51 1.09z"/></svg>Languages</div>
+      <div class="drawer-divider"></div>
+      <div class="drawer-item" onclick="goToScreen('deleted-books.html')"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>Deleted Books</div>
+      <div class="drawer-item" onclick="goToScreen('settings.html')"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84a.484.484 0 00-.48.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.488.488 0 00-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.27.41.48.41h3.84c.24 0 .44-.17.48-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.03-1.58zM12 15.6A3.6 3.6 0 118.4 12 3.6 3.6 0 0112 15.6z"/></svg>Settings</div>
+    </div>
+  </div>
+
+  <div class="gesture-nav"><div class="gesture-pill"></div></div>
+</div>
+
+<script>
+const books = [
+  { id:1, title:"The Alchemist", author:"Paulo Coelho", status:"available", location:"Study / Shelf 2", cover:"https://covers.openlibrary.org/b/id/8264381-M.jpg" },
+  { id:2, title:"Sapiens: A Brief History of Humankind", author:"Yuval Noah Harari", status:"checked-out", borrower:"Mom", cover:"https://covers.openlibrary.org/b/id/8136579-M.jpg" },
+  { id:3, title:"The Hobbit", author:"J.R.R. Tolkien", status:"loaned", borrower:"Arjun", due:"Jan 5", cover:"https://covers.openlibrary.org/b/id/8264384-M.jpg" },
+  { id:4, title:"Atomic Habits", author:"James Clear", status:"available", location:"Living Room / Shelf 1", cover:"https://covers.openlibrary.org/b/id/8380867-M.jpg" },
+  { id:5, title:"Thinking, Fast and Slow", author:"Daniel Kahneman", status:"available", location:"Study / Shelf 3", cover:"https://covers.openlibrary.org/b/id/8264385-M.jpg" },
+  { id:6, title:"To Kill a Mockingbird", author:"Harper Lee", status:"overdue", borrower:"Dad", due:"Dec 20", cover:"https://covers.openlibrary.org/b/id/8264390-M.jpg" },
+  { id:7, title:"1984", author:"George Orwell", status:"available", location:"Bedroom / Cupboard A", cover:"https://covers.openlibrary.org/b/id/8264391-M.jpg" },
+  { id:8, title:"Educated", author:"Tara Westover", status:"available", location:null, cover:"https://covers.openlibrary.org/b/id/8380868-M.jpg" },
+  { id:9, title:"Becoming", author:"Michelle Obama", status:"checked-out", borrower:"You", cover:"https://covers.openlibrary.org/b/id/8380869-M.jpg" },
+  { id:10, title:"The Great Gatsby", author:"F. Scott Fitzgerald", status:"available", location:"Study / Shelf 1", cover:"https://covers.openlibrary.org/b/id/8264392-M.jpg" },
+  { id:11, title:"Dune", author:"Frank Herbert", status:"available", location:"Living Room / Shelf 2", cover:"https://covers.openlibrary.org/b/id/8264393-M.jpg" },
+  { id:12, title:"Project Hail Mary", author:"Andy Weir", status:"available", location:null, cover:"https://covers.openlibrary.org/b/id/8380870-M.jpg" },
+];
+
+let currentView = 'grid';
+let selectedIds = new Set();
+let isMultiSelect = false;
+
+function renderBooks() {
+  const query = document.getElementById('search-input').value.toLowerCase();
+  const filtered = books.filter(b =>
+    b.title.toLowerCase().includes(query) || b.author.toLowerCase().includes(query)
+  );
+
+  const grid = document.getElementById('book-grid');
+  const list = document.getElementById('book-list');
+  const emptySearch = document.getElementById('empty-search');
+
+  if (filtered.length === 0 && query) {
+    grid.style.display = 'none';
+    list.style.display = 'none';
+    emptySearch.classList.add('visible');
+    return;
+  }
+  emptySearch.classList.remove('visible');
+
+  const html = filtered.map(b => {
+    const checked = selectedIds.has(b.id) ? 'checked' : '';
+    let badge = '';
+    if (b.status === 'available') {
+      badge = `<span class="badge">${b.location || 'No location'}</span>`;
+    } else if (b.status === 'checked-out') {
+      badge = `<span class="badge checked-out">With ${b.borrower}</span>`;
+    } else if (b.status === 'loaned') {
+      badge = `<span class="badge loaned">Loaned to ${b.borrower}</span>`;
+    } else if (b.status === 'overdue') {
+      badge = `<span class="badge overdue">Overdue — due ${b.due}</span>`;
+    }
+    const coverImg = b.cover ? `<img src="${b.cover}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : '';
+    const placeholder = `<div class="cover-placeholder" style="display:${b.cover?'none':'flex'}"><svg viewBox="0 0 24 24" fill="var(--md-sys-color-outline)"><path d="M18 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg></div>`;
+
+    if (currentView === 'grid') {
+      return `
+        <div class="book-card" data-id="${b.id}" onmousedown="handlePress(${b.id})" ontouchstart="handlePress(${b.id})">
+          <div class="cover">${coverImg}${placeholder}</div>
+          <div class="info">
+            <div class="title">${b.title}</div>
+            <div class="author">${b.author}</div>
+            ${badge}
+          </div>
+          <div class="card-check ${checked}" id="check-${b.id}"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
+        </div>`;
+    } else {
+      return `
+        <div class="book-card list" data-id="${b.id}" onmousedown="handlePress(${b.id})" ontouchstart="handlePress(${b.id})">
+          <div class="cover">${coverImg}${placeholder}</div>
+          <div class="info">
+            <div class="title">${b.title}</div>
+            <div class="author">${b.author}</div>
+            ${badge}
+          </div>
+          <div class="card-check ${checked}" id="check-${b.id}"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
+        </div>`;
+    }
+  }).join('');
+
+  if (currentView === 'grid') {
+    grid.innerHTML = html;
+    grid.style.display = 'grid';
+    list.style.display = 'none';
+  } else {
+    list.innerHTML = html;
+    list.style.display = 'flex';
+    grid.style.display = 'none';
+  }
+
+  if (isMultiSelect) {
+    document.querySelectorAll('.book-card').forEach(c => c.classList.add('multi-select'));
+  }
+}
+
+let pressTimer;
+function handlePress(id) {
+  if (isMultiSelect) {
+    toggleSelect(id);
+    return;
+  }
+  pressTimer = setTimeout(() => {
+    isMultiSelect = true;
+    selectedIds.add(id);
+    document.querySelectorAll('.book-card').forEach(c => c.classList.add('multi-select'));
+    updateSelectBar();
+    renderBooks();
+  }, 500);
+}
+
+document.addEventListener('mouseup', () => clearTimeout(pressTimer));
+document.addEventListener('touchend', () => clearTimeout(pressTimer));
+
+document.getElementById('content-area').addEventListener('click', (e) => {
+  if (isMultiSelect && !e.target.closest('.book-card')) {
+    isMultiSelect = false;
+    selectedIds.clear();
+    document.querySelectorAll('.book-card').forEach(c => c.classList.remove('multi-select'));
+    updateSelectBar();
+    renderBooks();
+  }
+});
+
+function toggleSelect(id) {
+  if (selectedIds.has(id)) selectedIds.delete(id);
+  else selectedIds.add(id);
+  updateSelectBar();
+  renderBooks();
+}
+
+function updateSelectBar() {
+  const bar = document.getElementById('multiselect-bar');
+  const count = document.getElementById('select-count');
+  if (selectedIds.size > 0) {
+    bar.classList.add('visible');
+    count.textContent = selectedIds.size + ' selected';
+    document.getElementById('fab-wrap').style.display = 'none';
+  } else {
+    bar.classList.remove('visible');
+    document.getElementById('fab-wrap').style.display = 'flex';
+  }
+}
+
+function deleteSelected() {
+  alert('Delete ' + selectedIds.size + ' books?');
+}
+function moveSelected() {
+  alert('Change location for ' + selectedIds.size + ' books');
+}
+
+function setView(view) {
+  currentView = view;
+  document.getElementById('view-grid').style.opacity = view === 'grid' ? '1' : '0.5';
+  document.getElementById('view-list').style.opacity = view === 'list' ? '1' : '0.5';
+  renderBooks();
+}
+
+function handleSearch() { renderBooks(); }
+
+function toggleChip(el) { el.classList.toggle('active'); }
+
+function toggleFab() {
+  const wrap = document.getElementById('fab-wrap');
+  const btn = document.getElementById('main-fab');
+  wrap.classList.toggle('open');
+  btn.classList.toggle('open');
+}
+
+function dismissNudge() { document.getElementById('nudge').style.display = 'none'; }
+
+function toggleDrawer() {
+  document.getElementById('drawer').classList.toggle('open');
+  document.getElementById('drawer-overlay').classList.toggle('open');
+}
+
+function goToScreen(url) { window.location.href = url; }
+function goToAdd() { window.location.href = 'add-book.html'; }
+function voiceSearch() { alert('Voice search listening…'); }
+function showSort() { document.getElementById('sort-select').focus(); }
+
+function toggleTheme() {
+  const root = document.documentElement;
+  const current = root.getAttribute('data-theme');
+  root.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+  localStorage.setItem('theme', current === 'dark' ? 'light' : 'dark');
+}
+
+const savedTheme = localStorage.getItem('theme');
+if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+  document.documentElement.setAttribute('data-theme', 'dark');
+}
+
+renderBooks();
+</script>
+</body>
+</html>

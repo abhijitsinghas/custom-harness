@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>The Little Library — Manage</title>
+<style>
+  :root {
+    --md-sys-color-primary: #5D4037;
+    --md-sys-color-on-primary: #FFFFFF;
+    --md-sys-color-primary-container: #EADDCF;
+    --md-sys-color-on-primary-container: #3E2B23;
+    --md-sys-color-secondary: #FFA000;
+    --md-sys-color-on-secondary: #FFFFFF;
+    --md-sys-color-secondary-container: #FFE0B2;
+    --md-sys-color-surface: #FFF8F0;
+    --md-sys-color-surface-variant: #F2ECE6;
+    --md-sys-color-background: #FAFAF5;
+    --md-sys-color-on-surface: #1C1B1F;
+    --md-sys-color-on-surface-variant: #49454F;
+    --md-sys-color-outline: #79747E;
+    --md-sys-color-outline-variant: #CAC4D0;
+    --md-sys-color-error: #B3261E;
+    --md-sys-color-error-container: #F9DEDC;
+    --md-sys-color-on-error-container: #410E0B;
+    --md-sys-color-green: #4CAF50;
+    --md-sys-color-blue: #2196F3;
+    --md-sys-color-red: #F44336;
+    --md-sys-elevation-1: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
+    --md-sys-elevation-2: 0 3px 6px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.12);
+    --md-sys-elevation-fab: 0 4px 8px rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.14);
+    --font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+  [data-theme="dark"] {
+    --md-sys-color-primary: #D4C4B5;
+    --md-sys-color-on-primary: #3E2B23;
+    --md-sys-color-primary-container: #5D4037;
+    --md-sys-color-on-primary-container: #EADDCF;
+    --md-sys-color-secondary: #FFB945;
+    --md-sys-color-on-secondary: #3E2B23;
+    --md-sys-color-secondary-container: #6B4A2E;
+    --md-sys-color-surface: #2B2930;
+    --md-sys-color-surface-variant: #3E3B44;
+    --md-sys-color-background: #1C1B1F;
+    --md-sys-color-on-surface: #E6E1E5;
+    --md-sys-color-on-surface-variant: #CAC4D0;
+    --md-sys-color-outline: #938F99;
+    --md-sys-color-outline-variant: #49454F;
+    --md-sys-color-error: #F2B8B5;
+    --md-sys-color-error-container: #8C1D18;
+    --md-sys-color-on-error-container: #F9DEDC;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    font-family: var(--font-family);
+    background: #000;
+    color: var(--md-sys-color-on-surface);
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .device-frame {
+    width: 412px;
+    height: 900px;
+    background: var(--md-sys-color-background);
+    border-radius: 24px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  @media (max-width: 440px) {
+    .device-frame { width: 100vw; height: 100vh; border-radius: 0; }
+  }
+  .status-bar {
+    height: 32px;
+    background: var(--md-sys-color-surface);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+  }
+  .app-bar {
+    height: 56px;
+    background: var(--md-sys-color-surface);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 8px;
+    box-shadow: var(--md-sys-elevation-1);
+    z-index: 10;
+  }
+  .app-bar__title {
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+    flex: 1;
+  }
+  .icon-btn {
+    width: 40px; height: 40px;
+    border-radius: 20px;
+    border: none;
+    background: transparent;
+    color: var(--md-sys-color-on-surface-variant);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  /* Tabs */
+  .tabs {
+    display: flex;
+    background: var(--md-sys-color-surface);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  }
+  .tab {
+    flex: 1;
+    height: 44px;
+    border: none;
+    background: transparent;
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    position: relative;
+  }
+  .tab.active { color: var(--md-sys-color-primary); }
+  .tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 16px; right: 16px;
+    height: 3px;
+    background: var(--md-sys-color-primary);
+    border-radius: 2px 2px 0 0;
+  }
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--md-sys-color-background);
+    padding-bottom: 80px;
+  }
+  .content::-webkit-scrollbar { display: none; }
+
+  /* Swipe row */
+  .swipe-item {
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 1px;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: pan-y;
+  }
+  .swipe-item__front {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--md-sys-color-surface);
+    position: relative;
+    z-index: 2;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: grab;
+  }
+  .swipe-item__front:active { cursor: grabbing; }
+  .swipe-item__front.swiped { transform: translateX(-88px); }
+
+  .swipe-item__actions {
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 88px;
+    background: var(--md-sys-color-error);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+  }
+  .delete-btn {
+    width: 100%; height: 100%;
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+  .delete-btn svg { width: 18px; height: 18px; fill: currentColor; }
+
+  .list-item__icon {
+    width: 36px; height: 36px;
+    border-radius: 18px;
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .list-item__icon svg { width: 18px; height: 18px; fill: currentColor; }
+  .list-item__info { flex: 1; min-width: 0; }
+  .list-item__name { font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .list-item__meta { font-size: 12px; color: var(--md-sys-color-on-surface-variant); margin-top: 2px; }
+  .list-item__lock {
+    width: 20px; height: 20px;
+    color: var(--md-sys-color-on-surface-variant);
+    flex-shrink: 0;
+  }
+  .list-item__lock svg { width: 16px; height: 16px; fill: currentColor; }
+  .toggle-wrap {
+    width: 44px; height: 24px;
+    border-radius: 12px;
+    background: var(--md-sys-color-primary);
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle-wrap.off { background: var(--md-sys-color-outline-variant); }
+  .toggle-wrap::after {
+    content: '';
+    position: absolute;
+    top: 2px; right: 2px;
+    width: 20px; height: 20px;
+    border-radius: 10px;
+    background: #fff;
+    transition: transform 0.2s;
+  }
+  .toggle-wrap.off::after { transform: translateX(-20px); }
+
+  /* Hint row */
+  .hint-row {
+    padding: 10px 16px;
+    font-size: 12px;
+    color: var(--md-sys-color-on-surface-variant);
+    background: var(--md-sys-color-background);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .hint-row svg { width: 14px; height: 14px; fill: currentColor; }
+
+  /* FAB */
+  .fab {
+    position: absolute;
+    bottom: 28px;
+    right: 20px;
+    width: 56px; height: 56px;
+    border-radius: 16px;
+    border: none;
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--md-sys-elevation-fab);
+    z-index: 20;
+  }
+  .fab svg { width: 24px; height: 24px; fill: currentColor; }
+
+  /* Dialogs */
+  .dialog-overlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 24px;
+  }
+  .dialog-overlay.open { display: flex; }
+  .dialog {
+    width: 100%;
+    max-width: 320px;
+    background: var(--md-sys-color-surface);
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: var(--md-sys-elevation-2);
+  }
+  .dialog h4 { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
+  .dialog p { font-size: 14px; color: var(--md-sys-color-on-surface-variant); line-height: 1.5; margin-bottom: 16px; }
+  .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .dialog-actions button {
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 20px;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .dialog-actions .btn-text { background: transparent; color: var(--md-sys-color-primary); }
+  .dialog-actions .btn-filled { background: var(--md-sys-color-error); color: #fff; }
+  .dialog-field {
+    width: 100%;
+    height: 48px;
+    border-radius: 8px;
+    border: 1.5px solid var(--md-sys-color-outline);
+    background: var(--md-sys-color-surface);
+    color: var(--md-sys-color-on-surface);
+    padding: 0 14px;
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+    margin-bottom: 16px;
+  }
+  .dialog-field:focus { border-color: var(--md-sys-color-primary); }
+  .gesture-nav {
+    height: 20px;
+    background: var(--md-sys-color-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 8px;
+  }
+  .gesture-pill {
+    width: 108px;
+    height: 4px;
+    background: var(--md-sys-color-on-surface);
+    opacity: 0.4;
+    border-radius: 2px;
+  }
+</style>
+</head>
+<body>
+<div class="device-frame">
+  <div class="status-bar"><span>9:41</span><span>🔋 85%</span></div>
+  <div class="app-bar">
+    <button class="icon-btn" onclick="goBack()" aria-label="Back">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+    </button>
+    <span class="app-bar__title" id="page-title">Genres</span>
+    <div style="width:40px"></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab(this,'genres')">Genres</button>
+    <button class="tab" onclick="switchTab(this,'tags')">Tags</button>
+    <button class="tab" onclick="switchTab(this,'languages')">Languages</button>
+  </div>
+
+  <div class="content">
+    <!-- Genres -->
+    <div id="genres-list">
+      <div class="hint-row">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        Swipe custom items left to delete. Defaults can only be toggled.
+      </div>
+      <!-- Default genres -->
+      <div class="swipe-item" data-default="true" data-name="Fiction">
+        <div class="swipe-item__front">
+          <div class="list-item__icon"><svg viewBox="0 0 24 24"><path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z"/></svg></div>
+          <div class="list-item__info"><div class="list-item__name">Fiction</div><div class="list-item__meta">243 books</div></div>
+          <div class="list-item__lock"><svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg></div>
+          <div class="toggle-wrap"></div>
+        </div>
+      </div>
+      <div class="swipe-item" data-default="true" data-name="Non-Fiction">
+        <div class="swipe-item__front">
+          <div class="list-item__icon"><svg viewBox="0 0 24 24"><path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z"/></svg></div>
+          <div class="list-item__info"><div class="list-item__name">Non-Fiction</div><div class="list-item__meta">156 books</div></div>
+          <div class="list-item__lock"><svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg></div>
+          <div class="toggle-wrap"></div>
+        </div>
+      </div>
+      <div class="swipe-item" data-default="true" data-name="Science Fiction">
+        <div class="swipe-item__front">
+          <div class="list-item__icon"><svg viewBox="0 0 24 24"><path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z"/></svg></div>
+          <div class="list-item__info"><div class="list-item__name">Science Fiction</div><div class="list-item__meta">42 books</div></div>
+          <div class="list-item__lock"><svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg></div>
+          <div class="toggle-wrap off" onclick="this.classList.toggle('off')"></div>
+        </div>
+      </div>
+      <div class="swipe-item" data-default="true" data-name="Philosophy">
+        <div class="swipe-item__front">
+          <div class="list-item__icon"><svg viewBox="0 0 24 24"><path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z"/></svg></div>
+          <div class="list-item__info"><div class="list-item__name">Philosophy</div><div class="list-item__meta">18 books</div></div>
+          <div class="list-item__lock"><svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg></div>
+          <div class="toggle-wrap"></div>
+        </div>
+      </div>
+      <div class="swipe-item" data-default="true" data-name="Biography">
+        <div class="swipe-item__front">
+          <div class="list-item__icon"><svg viewBox="0 0 24 24"><path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z"/></svg></div>
+          <div class="list-item__info"><div class="list-item__name">Biography</div><div class="list-item__meta">31 books</div></div>
+          <div class="list-item__lock"><svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg></div>
+          <div class="toggle-wrap"></div>
+        </div>
+      </div>
+      <!-- Custom genres -->
+      <div class="swipe-item" data-default="false" data-name="Indie">
+        <div class="swipe-item__actions">
+          <button class="delete-btn" onclick="promptDelete(this)">
+            <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            Delete
+          </button>
+        </div>
+        <div class="swipe-item__front">
+          <div class="list-item__icon"><svg viewBox="0 0 24 24"><path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z"/></svg></div>
+          <div class="list-item__info"><div class="list-item__name">Indie</div><div class="list-item__meta">3 books</div></div>
+          <div class="toggle-wrap"></div>
+        </div>
+      </div>
+      <div class="swipe-item" data-default="false" data-name="Graphic Novel">
+        <div class="swipe-item__actions">
+          <button class="delete-btn" onclick="promptDelete(this)">
+            <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            Delete
+          </button>
+        </div>
+        <div class="swipe-item__front">
+          <div class="list-item__icon"><svg viewBox="0 0 24 24"><path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z"/></svg></div>
+          <div class="list-item__info"><div class="list-item__name">Graphic Novel</div><div class="list-item__meta">6 books</div></div>
+          <div class="toggle-wrap"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tags -->
+    <div id="tags-list" style="display:none">
+      <div class="hint-row">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        Default tags can be toggled. Swipe custom tags left to delete.
+      </div>
+      <div class="swipe-item" data-default="true" data-name="#classic">
+        <div class="swipe-item__front">
+          <div class="list-item__icon" style="background:var(--md-sys-color-surface-variant);color:var(--md-sys-color-on-surface-variant)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 10V8h-4V4h-2v4h-4V4H8v4H4v2h4v4H4v2h4v4h2v-4h4v4h2v-4h4v-2h-4v-4h4zm-6 4h-4v-4h4v4z"/></svg></div>
+          <div class="list-item__info"><div class="list-item__name">#classic</div><div class="list-item__meta">12 books</div></div>
+          <div class="list-item__lock"><svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg></div>
+          <div class="toggle-wrap"></div>
+        </div>
+      </div>
+      <div class="swipe-item" data-default="true" data-name="#spiritual">
+        <div class="swipe-item__front">
+          <div class="list-item__icon" style="background:var(--md-sys-color-surface-variant);color:var(--md-sys-color-on-surface-variant)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 10V8h-4V4h-2v4h-4V4H8v4H4v2h4v4H4v2h4v4h2v-4h4v4h2v-4h4v-2h-4v-4h4zm-6 4h-4v-4h4v4z"/></svg></div>
+          <div class="list-item__info"><div class="list-item__name">#spiritual</div><div class="list-item__meta">8 books</div></div>
+          <div class="list-item__lock"><svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg></div>
+          <div class="toggle-wrap"></div>
+        </div>
+      </div>
+      <!-- Custom tags -->
+      <div class="swipe-item" data-default="false" data-name="#family-favourite">
+        <div class="swipe-item__actions">
+          <button class="delete-btn" onclick="promptDelete(this)">
+            <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            Delete
+          </button>
+        </div>
+        <div class="swipe-item__front">
+          <div class="list-item__icon" style="background:var(--md-sys-color-surface-variant);color:var(--md-sys-color-on-surface-variant)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 10V8h-4V4h-2v4h-4V4H8v4H4v2h4v4H4v2h4v4h2v-4h4v4h2v-4h4v-2h-4v-4h4zm-6 4h-4v-4h4v4z"/></svg></div>
+          <div class="list-item__info"><div class="list-item__name">#family-favourite</div><div class="list-item__meta">5 books</div></div>
+          <div class="toggle-wrap"></div>
+        </div>
+      </div>
+      <div class="swipe-item" data-default="false" data-name="#kids">
+        <div class="swipe-item__actions">
+          <button class="delete-btn" onclick="promptDelete(this)">
+            <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            Delete
+          </button>
+        </div>
+        <div class="swipe-item__front">
+          <div class="list-item__icon" style="background:var(--md-sys-color-surface-variant);color:var(--md-sys-color-on-surface-variant)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 10V8h-4V4h-2v4h-4V4H8v4H4v2h4v4H4v2h4v4h2v-4h4v4h2v-4h4v-2h-4v-4h4zm-6 4h-4v-4h4v4z"/></svg></div>
+          <div class="list-item__info"><div class="list-item__name">#kids</div><div class="list-item__meta">14 books</div></div>
+          <div class="toggle-wrap"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Languages -->
+    <div id="languages-list" style="display:none">
+      <div class="hint-row">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        Default languages can be toggled. Swipe custom ones left to delete.
+      </div>
+      <div class="swipe-item" data-default="true" data-name="English">
+        <div class="swipe-item__front">
+          <div class="list-item__icon"><svg viewBox="0 0 24 24"><path d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0020.88 4c.41 0 .75.34.75.75 0 .41-.34.75-.75.75A16.24 16.24 0 0112.87 15.07zM20.05 17.98l-2.54-2.54a16.27 16.27 0 01-8.03 3.17c-.41 0-.75-.34-.75-.75s.34-.75.75-.75c2.78 0 5.34-.93 7.41-2.49l-2.52-2.52-5.52 5.52c-.59.59-1.54.59-2.12 0L1.72 11.3a.75.75 0 010-1.06l5.52-5.52-2.51-2.54 1.06-1.06 14.77 14.77-1.51 1.09z"/></svg></div>
+          <div class="list-item__info"><div class="list-item__name">English</div><div class="list-item__meta">412 books</div></div>
+          <div class="list-item__lock"><svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg></div>
+          <div class="toggle-wrap"></div>
+        </div>
+      </div>
+      <div class="swipe-item" data-default="true" data-name="Hindi">
+        <div class="swipe-item__front">
+          <div class="list-item__icon"><svg viewBox="0 0 24 24"><path d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0020.88 4c.41 0 .75.34.75.75 0 .41-.34.75-.75.75A16.24 16.24 0 0112.87 15.07zM20.05 17.98l-2.54-2.54a16.27 16.27 0 01-8.03 3.17c-.41 0-.75-.34-.75-.75s.34-.75.75-.75c2.78 0 5.34-.93 7.41-2.49l-2.52-2.52-5.52 5.52c-.59.59-1.54.59-2.12 0L1.72 11.3a.75.75 0 010-1.06l5.52-5.52-2.51-2.54 1.06-1.06 14.77 14.77-1.51 1.09z"/></svg></div>
+          <div class="list-item__info"><div class="list-item__name">Hindi</div><div class="list-item__meta">23 books</div></div>
+          <div class="list-item__lock"><svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg></div>
+          <div class="toggle-wrap"></div>
+        </div>
+      </div>
+      <div class="swipe-item" data-default="true" data-name="Spanish">
+        <div class="swipe-item__front">
+          <div class="list-item__icon"><svg viewBox="0 0 24 24"><path d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0020.88 4c.41 0 .75.34.75.75 0 .41-.34.75-.75.75A16.24 16.24 0 0112.87 15.07zM20.05 17.98l-2.54-2.54a16.27 16.27 0 01-8.03 3.17c-.41 0-.75-.34-.75-.75s.34-.75.75-.75c2.78 0 5.34-.93 7.41-2.49l-2.52-2.52-5.52 5.52c-.59.59-1.54.59-2.12 0L1.72 11.3a.75.75 0 010-1.06l5.52-5.52-2.51-2.54 1.06-1.06 14.77 14.77-1.51 1.09z"/></svg></div>
+          <div class="list-item__info"><div class="list-item__name">Spanish</div><div class="list-item__meta">7 books</div></div>
+          <div class="list-item__lock"><svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg></div>
+          <div class="toggle-wrap off" onclick="this.classList.toggle('off')"></div>
+        </div>
+      </div>
+      <!-- Custom languages -->
+      <div class="swipe-item" data-default="false" data-name="Marathi">
+        <div class="swipe-item__actions">
+          <button class="delete-btn" onclick="promptDelete(this)">
+            <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            Delete
+          </button>
+        </div>
+        <div class="swipe-item__front">
+          <div class="list-item__icon"><svg viewBox="0 0 24 24"><path d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0020.88 4c.41 0 .75.34.75.75 0 .41-.34.75-.75.75A16.24 16.24 0 0112.87 15.07zM20.05 17.98l-2.54-2.54a16.27 16.27 0 01-8.03 3.17c-.41 0-.75-.34-.75-.75s.34-.75.75-.75c2.78 0 5.34-.93 7.41-2.49l-2.52-2.52-5.52 5.52c-.59.59-1.54.59-2.12 0L1.72 11.3a.75.75 0 010-1.06l5.52-5.52-2.51-2.54 1.06-1.06 14.77 14.77-1.51 1.09z"/></svg></div>
+          <div class="list-item__info"><div class="list-item__name">Marathi</div><div class="list-item__meta">4 books</div></div>
+          <div class="toggle-wrap"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button class="fab" onclick="showAddDialog()" aria-label="Add">
+    <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+  </button>
+
+  <!-- Add dialog -->
+  <div class="dialog-overlay" id="add-dialog">
+    <div class="dialog">
+      <h4 id="add-dialog-title">Add Genre</h4>
+      <input class="dialog-field" placeholder="Name" id="add-field">
+      <div class="dialog-actions">
+        <button class="btn-text" onclick="closeAddDialog()">Cancel</button>
+        <button class="btn-text" style="color:var(--md-sys-color-primary)" onclick="closeAddDialog()">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete confirmation -->
+  <div class="dialog-overlay" id="delete-dialog">
+    <div class="dialog">
+      <h4>Delete permanently?</h4>
+      <p id="delete-dialog-body">This custom item will be removed from all books. This cannot be undone.</p>
+      <div class="dialog-actions">
+        <button class="btn-text" onclick="closeDeleteDialog()">Cancel</button>
+        <button class="btn-filled" onclick="confirmDelete()">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="gesture-nav"><div class="gesture-pill"></div></div>
+</div>
+
+<script>
+  let currentTab = 'genres';
+  let pendingDeleteItem = null;
+
+  function goBack() { window.location.href = 'catalog.html'; }
+
+  function switchTab(tab, name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentTab = name;
+    document.getElementById('page-title').textContent = name.charAt(0).toUpperCase() + name.slice(1);
+    document.getElementById('add-dialog-title').textContent = 'Add ' + name.charAt(0).toUpperCase() + name.slice(1);
+    document.getElementById('genres-list').style.display = name === 'genres' ? 'block' : 'none';
+    document.getElementById('tags-list').style.display = name === 'tags' ? 'block' : 'none';
+    document.getElementById('languages-list').style.display = name === 'languages' ? 'block' : 'none';
+  }
+
+  function showAddDialog() { document.getElementById('add-dialog').classList.add('open'); document.getElementById('add-field').focus(); }
+  function closeAddDialog() { document.getElementById('add-dialog').classList.remove('open'); }
+
+  function promptDelete(btn) {
+    const item = btn.closest('.swipe-item');
+    const name = item.dataset.name || 'this item';
+    pendingDeleteItem = item;
+    document.getElementById('delete-dialog-body').textContent =
+      '"' + name + '" will be removed from all books. This cannot be undone.';
+    document.getElementById('delete-dialog').classList.add('open');
+  }
+
+  function closeDeleteDialog() {
+    document.getElementById('delete-dialog').classList.remove('open');
+    if (pendingDeleteItem) {
+      const front = pendingDeleteItem.querySelector('.swipe-item__front');
+      if (front) front.classList.remove('swiped');
+    }
+    pendingDeleteItem = null;
+  }
+
+  function confirmDelete() {
+    if (pendingDeleteItem) {
+      pendingDeleteItem.style.transition = 'opacity 0.25s, transform 0.25s';
+      pendingDeleteItem.style.opacity = '0';
+      pendingDeleteItem.style.transform = 'translateX(-100%)';
+      setTimeout(() => { pendingDeleteItem.remove(); pendingDeleteItem = null; }, 260);
+    }
+    document.getElementById('delete-dialog').classList.remove('open');
+  }
+
+  // Swipe-to-delete for custom items only
+  (function initSwipe() {
+    const items = document.querySelectorAll('.swipe-item[data-default="false"]');
+    items.forEach(item => {
+      const front = item.querySelector('.swipe-item__front');
+      if (!front) return;
+
+      let startX = 0;
+      let currentX = 0;
+      let isDragging = false;
+
+      function onStart(x) {
+        // close any other open swipes
+        document.querySelectorAll('.swipe-item__front.swiped').forEach(el => {
+          if (el !== front) el.classList.remove('swiped');
+        });
+        startX = x;
+        isDragging = true;
+        front.style.transition = 'none';
+      }
+
+      function onMove(x) {
+        if (!isDragging) return;
+        currentX = x;
+        const delta = currentX - startX;
+        if (delta < 0) {
+          // only allow left swipe
+          const translate = Math.max(delta, -88);
+          front.style.transform = 'translateX(' + translate + 'px)';
+        }
+      }
+
+      function onEnd() {
+        if (!isDragging) return;
+        isDragging = false;
+        front.style.transition = '';
+        const delta = currentX - startX;
+        if (delta < -44) {
+          front.classList.add('swiped');
+          front.style.transform = '';
+        } else {
+          front.classList.remove('swiped');
+          front.style.transform = '';
+        }
+      }
+
+      front.addEventListener('touchstart', e => onStart(e.touches[0].clientX), { passive: true });
+      front.addEventListener('touchmove', e => onMove(e.touches[0].clientX), { passive: true });
+      front.addEventListener('touchend', onEnd);
+      front.addEventListener('touchcancel', onEnd);
+
+      front.addEventListener('mousedown', e => {
+        onStart(e.clientX);
+        const move = ev => onMove(ev.clientX);
+        const up = () => { onEnd(); window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+        window.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', up);
+      });
+    });
+
+    // Tap anywhere else to close open swipes
+    document.querySelector('.content').addEventListener('click', e => {
+      if (!e.target.closest('.delete-btn')) {
+        document.querySelectorAll('.swipe-item__front.swiped').forEach(el => el.classList.remove('swiped'));
+      }
+    });
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>The Little Library — Active Loans</title>
+<style>
+  :root {
+    --md-sys-color-primary: #5D4037;
+    --md-sys-color-on-primary: #FFFFFF;
+    --md-sys-color-primary-container: #EADDCF;
+    --md-sys-color-on-primary-container: #3E2B23;
+    --md-sys-color-secondary: #FFA000;
+    --md-sys-color-on-secondary: #FFFFFF;
+    --md-sys-color-secondary-container: #FFE0B2;
+    --md-sys-color-surface: #FFF8F0;
+    --md-sys-color-surface-variant: #F2ECE6;
+    --md-sys-color-background: #FAFAF5;
+    --md-sys-color-on-surface: #1C1B1F;
+    --md-sys-color-on-surface-variant: #49454F;
+    --md-sys-color-outline: #79747E;
+    --md-sys-color-outline-variant: #CAC4D0;
+    --md-sys-color-green: #4CAF50;
+    --md-sys-color-blue: #2196F3;
+    --md-sys-color-red: #F44336;
+    --md-sys-elevation-1: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
+    --font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+  [data-theme="dark"] {
+    --md-sys-color-primary: #D4C4B5;
+    --md-sys-color-on-primary: #3E2B23;
+    --md-sys-color-primary-container: #5D4037;
+    --md-sys-color-on-primary-container: #EADDCF;
+    --md-sys-color-secondary: #FFB945;
+    --md-sys-color-on-secondary: #3E2B23;
+    --md-sys-color-secondary-container: #6B4A2E;
+    --md-sys-color-surface: #2B2930;
+    --md-sys-color-surface-variant: #3E3B44;
+    --md-sys-color-background: #1C1B1F;
+    --md-sys-color-on-surface: #E6E1E5;
+    --md-sys-color-on-surface-variant: #CAC4D0;
+    --md-sys-color-outline: #938F99;
+    --md-sys-color-outline-variant: #49454F;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    font-family: var(--font-family);
+    background: #000;
+    color: var(--md-sys-color-on-surface);
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .device-frame {
+    width: 412px;
+    height: 900px;
+    background: var(--md-sys-color-background);
+    border-radius: 24px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  @media (max-width: 440px) {
+    .device-frame { width: 100vw; height: 100vh; border-radius: 0; }
+  }
+  .status-bar {
+    height: 32px;
+    background: var(--md-sys-color-surface);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+  }
+  .app-bar {
+    height: 56px;
+    background: var(--md-sys-color-surface);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 8px;
+    box-shadow: var(--md-sys-elevation-1);
+    z-index: 10;
+  }
+  .app-bar__title {
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+    flex: 1;
+  }
+  .icon-btn {
+    width: 40px; height: 40px;
+    border-radius: 20px;
+    border: none;
+    background: transparent;
+    color: var(--md-sys-color-on-surface-variant);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  /* Tabs */
+  .tabs {
+    display: flex;
+    background: var(--md-sys-color-surface);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  }
+  .tab {
+    flex: 1;
+    height: 44px;
+    border: none;
+    background: transparent;
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    position: relative;
+  }
+  .tab.active { color: var(--md-sys-color-primary); }
+  .tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 16px; right: 16px;
+    height: 3px;
+    background: var(--md-sys-color-primary);
+    border-radius: 2px 2px 0 0;
+  }
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--md-sys-color-background);
+    padding: 0 16px 24px;
+  }
+  .content::-webkit-scrollbar { display: none; }
+  /* Book card */
+  .loan-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px;
+    background: var(--md-sys-color-surface);
+    border-radius: 12px;
+    margin-top: 12px;
+    box-shadow: var(--md-sys-elevation-1);
+    cursor: pointer;
+  }
+  .loan-card__cover {
+    width: 52px; height: 70px;
+    border-radius: 6px;
+    background: var(--md-sys-color-surface-variant);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .loan-card__cover svg { width: 28px; height: 28px; fill: var(--md-sys-color-outline); opacity: 0.5; }
+  .loan-card__info { flex: 1; }
+  .loan-card__title { font-size: 15px; font-weight: 500; }
+  .loan-card__meta { font-size: 13px; color: var(--md-sys-color-on-surface-variant); margin-top: 2px; }
+  .loan-card__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 10px;
+  }
+  .loan-card__badge.checked-out { background: #E3F2FD; color: #1565C0; }
+  [data-theme="dark"] .loan-card__badge.checked-out { background: #1565C0; color: #E3F2FD; }
+  .loan-card__badge.loaned { background: #FFF3E0; color: #E65100; }
+  [data-theme="dark"] .loan-card__badge.loaned { background: #E65100; color: #FFF3E0; }
+  .loan-card__badge.overdue { background: #FFEBEE; color: #C62828; }
+  [data-theme="dark"] .loan-card__badge.overdue { background: #C62828; color: #FFEBEE; }
+  /* Empty */
+  .empty-state {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    text-align: center;
+  }
+  .empty-state.visible { display: flex; }
+  .empty-state__icon {
+    width: 80px; height: 80px;
+    background: var(--md-sys-color-surface-variant);
+    border-radius: 40px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 16px;
+  }
+  .empty-state__icon svg { width: 40px; height: 40px; fill: var(--md-sys-color-outline); }
+  .empty-state__title { font-size: 16px; font-weight: 500; }
+  .empty-state__body { font-size: 14px; color: var(--md-sys-color-on-surface-variant); margin-top: 6px; }
+  .gesture-nav {
+    height: 20px;
+    background: var(--md-sys-color-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 8px;
+  }
+  .gesture-pill {
+    width: 108px;
+    height: 4px;
+    background: var(--md-sys-color-on-surface);
+    opacity: 0.4;
+    border-radius: 2px;
+  }
+</style>
+</head>
+<body>
+<div class="device-frame">
+  <div class="status-bar"><span>9:41</span><span>🔋 85%</span></div>
+  <div class="app-bar">
+    <button class="icon-btn" onclick="goBack()" aria-label="Back">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+    </button>
+    <span class="app-bar__title">Active Loans</span>
+    <div style="width:40px"></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab(this,'checked-out')">Checked Out</button>
+    <button class="tab" onclick="switchTab(this,'loaned')">Loaned</button>
+  </div>
+
+  <div class="content">
+    <div id="checked-out-list">
+      <div class="loan-card" onclick="goToDetail()">
+        <div class="loan-card__cover">
+          <svg viewBox="0 0 24 24"><path d="M18 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+        </div>
+        <div class="loan-card__info">
+          <div class="loan-card__title">Sapiens</div>
+          <div class="loan-card__meta">Yuval Noah Harari</div>
+          <span class="loan-card__badge checked-out">With Mom</span>
+        </div>
+      </div>
+      <div class="loan-card" onclick="goToDetail()">
+        <div class="loan-card__cover">
+          <svg viewBox="0 0 24 24"><path d="M18 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+        </div>
+        <div class="loan-card__info">
+          <div class="loan-card__title">Becoming</div>
+          <div class="loan-card__meta">Michelle Obama</div>
+          <span class="loan-card__badge checked-out">With You</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="loaned-list" style="display:none">
+      <div class="loan-card" onclick="goToDetail()">
+        <div class="loan-card__cover">
+          <svg viewBox="0 0 24 24"><path d="M18 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+        </div>
+        <div class="loan-card__info">
+          <div class="loan-card__title">The Hobbit</div>
+          <div class="loan-card__meta">J.R.R. Tolkien</div>
+          <span class="loan-card__badge loaned">Loaned to Arjun · Due Jan 5</span>
+        </div>
+      </div>
+      <div class="loan-card" onclick="goToDetail()">
+        <div class="loan-card__cover">
+          <svg viewBox="0 0 24 24"><path d="M18 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+        </div>
+        <div class="loan-card__info">
+          <div class="loan-card__title">To Kill a Mockingbird</div>
+          <div class="loan-card__meta">Harper Lee</div>
+          <span class="loan-card__badge overdue">Overdue — due Dec 20</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="empty-state" id="empty-state">
+      <div class="empty-state__icon">
+        <svg viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+      </div>
+      <div class="empty-state__title">No active loans</div>
+      <div class="empty-state__body">Everything is on the shelf!</div>
+    </div>
+  </div>
+
+  <div class="gesture-nav"><div class="gesture-pill"></div></div>
+</div>
+
+<script>
+  function goBack() { window.location.href = 'catalog.html'; }
+  function goToDetail() { window.location.href = 'book-detail.html'; }
+  function switchTab(tab, name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('checked-out-list').style.display = name === 'checked-out' ? 'block' : 'none';
+    document.getElementById('loaned-list').style.display = name === 'loaned' ? 'block' : 'none';
+  }
+</script>
+</body>
+</html>
