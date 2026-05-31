@@ -15,7 +15,7 @@ planner → specs/plan.md (includes W{N}, IT{N}, E2E{N} workstreams)
       if Feature (W{N}):     feature-agent → implement + test + commit
       if Integration (IT{N}): feature-agent → write integration tests + commit
       if E2E (E2E{N}):      feature-agent → write E2E tests + commit
-  → After each test workstream: run integration tests as a gate
+  → After each test workstream: subagent runs test gate (orchestrator delegates)
   → After all workstreams: ONE reviewer (fresh context, sees ALL diffs, verifies tests per plan)
   → if blockers: fix affected workstreams → re-review
   → Quality Gate (enhanced — verifies test presence, count, coverage)
@@ -25,6 +25,56 @@ planner → specs/plan.md (includes W{N}, IT{N}, E2E{N} workstreams)
 
 1. Name your session: `/name [your-name]`
 2. Read `AGENTS.md` for project configuration (auto-injected into all agents)
+
+## Step 0: Resume & Recovery
+
+Run this on EVERY session start — first launch and after any interruption.
+
+### 1. Check for Running Subagents
+
+```
+subagent({ action: "status" })
+```
+
+- **If running agents exist:** Let them complete naturally. Do NOT guess timeouts — the subagent's own retry logic handles stalling. Lightweight-poll until completion.
+  - If the agent succeeds → proceed to Step 0.2 (determine pipeline position via git).
+  - If the agent fails → go to Step 2e (Failed Workstream).
+
+- **If no agents running:** Proceed to Step 0.2.
+
+### 2. Determine Pipeline Position from Git
+
+```bash
+git log --oneline -n 10
+git status --short
+```
+
+- **`git log`** shows recent commits. Identify the last one matching a workstream pattern (`W{N}:`, `IT{N}:`, `E2E{N}:`). This tells you which workstreams are fully complete.
+  - If no workstream commits exist → the pipeline hasn't started. Proceed to Step 1.
+- **`git status --short`** checks for uncommitted changes.
+  - **Clean tree:** No interrupted work. Read `{PLAN_PATH}`, find the next workstream after the last committed one, and dispatch fresh.
+  - **Dirty tree:** A previous subagent was interrupted mid-workstream. Dispatch a subagent to resume from the partial work:
+
+```
+subagent({
+  agent: "flutter-dev.feature-agent",
+  task: "Complete workstream {W{N}}: {name} from the plan at {PLAN_PATH}.
+    The previous attempt was interrupted — there is partial work in the tree.
+    Try to complete this workstream. If the state is too inconsistent
+    (build errors, half-written files, broken generated code), reset to
+    HEAD with `git reset --hard HEAD` and start fresh.
+    Commit with message 'W{N}: {name}' when done.
+    If unable to complete after 2 attempts, report failure and stop.",
+  model: "{determined model}",
+  thinking: "{determined thinking}",
+  context: "fresh",
+  async: true
+})
+```
+
+  Wait for completion.
+  - Success → proceed to Step 1 (determine next workstream from plan + git log).
+  - Failure → go to Step 2e (Failed Workstream).
 
 ## Step 1: Resolve Project Paths
 
@@ -206,14 +256,26 @@ subagent({
 })
 ```
 
-Wait for completion. **Run test gate:**
+Wait for completion. **Run test gate via subagent:**
 
-```bash
-cd {APP_DIR}
-flutter test integration_test/
+```
+subagent({
+  agent: "flutter-dev.feature-agent",
+  model: "opencode-go/deepseek-v4-pro",
+  thinking: "high",
+  context: "fresh",
+  task: "Run integration test gate for workstream IT{N}: {name}.
+    Plan section: {PLAN_PATH} (section IT{N})
+    Run: `cd {APP_DIR} && flutter test integration_test/`
+    If all tests pass: report TEST GATE PASSED.
+    If any tests fail: produce a structured failure report listing
+      each failed test, the error message, and any suspected cause.
+    Do NOT modify any production or test files — verification-only.",
+  async: true
+})
 ```
 
-If integration tests fail → escalate to user: fix or rollback.
+Read the subagent's gate report. If tests passed → proceed to next workstream. If tests failed → go to Step 2e (Failed Workstream).
 
 ### Step 2d: Dispatch End-to-End Test (E2E{N}) Workstream
 
@@ -237,18 +299,73 @@ subagent({
 })
 ```
 
-Wait for completion. **Run test gate:**
+Wait for completion. **Run test gate via subagent:**
 
-```bash
-cd {APP_DIR}
-flutter test integration_test/
+```
+subagent({
+  agent: "flutter-dev.feature-agent",
+  model: "opencode-go/deepseek-v4-pro",
+  thinking: "high",
+  context: "fresh",
+  task: "Run End-to-End test gate for workstream E2E{N}: {name}.
+    Plan section: {PLAN_PATH} (section E2E{N})
+    Run: `cd {APP_DIR} && flutter test integration_test/`
+    If all tests pass: report TEST GATE PASSED.
+    If any tests fail: produce a structured failure report listing
+      each failed test, the error message, and any suspected cause.
+    Do NOT modify any production or test files — verification-only.",
+  async: true
+})
 ```
 
-If E2E tests fail → escalate to user: fix or rollback.
+Read the subagent's gate report. If tests passed → proceed to next workstream. If tests failed → go to Step 2e (Failed Workstream).
 
-### Step 2e: Failure handling
+### Step 2e: Failed Workstream — Escalate to User
 
-If any agent fails → ask user: retry, skip, or abort.
+When any subagent reports failure (including test gates):
+  → Do NOT analyze the error output, stack traces, or test logs.
+  → Do NOT run any diagnostic commands.
+  → Your ONLY action is to present the failure report to the user with structured options:
+
+```
+ask_user({
+  question: "Workstream {W{N}} has failed.",
+  context: "{concise failure summary from subagent report}",
+  options: [
+    { title: "🔁 Reset & Re-dispatch (same model)",
+      description: "git reset --hard HEAD, then fresh subagent with original model/thinking from tier" },
+    { title: "🔁 Reset & Re-dispatch (upgraded model)",
+      description: "git reset --hard HEAD, then fresh subagent with more capable model + higher thinking" },
+    { title: "🔄 Re-dispatch without reset (same model)",
+      description: "Keep working tree, new subagent fixes in-place with original model/thinking" },
+    { title: "🔄 Re-dispatch without reset (upgraded model)",
+      description: "Keep working tree, new subagent fixes in-place with more capable model + higher thinking" },
+    { title: "⏭️ Skip workstream",
+      description: "Mark skipped and proceed to next workstream" },
+    { title: "⏸️ Abort pipeline",
+      description: "Stop the entire pipeline" }
+  ],
+  allowFreeform: true,
+  allowComment: true
+})
+```
+
+**Orchestrator action based on user's choice:**
+
+| User choice | Orchestrator action |
+|-------------|-------------------|
+| Reset & Re-dispatch (same model) | `git reset --hard HEAD` then dispatch fresh subagent with original model/thinking from plan tier |
+| Reset & Re-dispatch (upgraded) | `git reset --hard HEAD` then dispatch fresh subagent with upgraded model/thinking |
+| Re-dispatch without reset (same model) | Dispatch fresh subagent with failure context + "fix in-place" instruction, same model/thinking |
+| Re-dispatch without reset (upgraded) | Dispatch fresh subagent with failure context + "fix in-place" instruction, upgraded model/thinking |
+| Skip | Note the skipped workstream, proceed to next |
+| Abort | Stop pipeline, report to user |
+| Custom model in freeform | Use the typed model name with xhigh thinking |
+
+**Upgraded model tier mapping:**
+- If original tier was Foundation (pro xhigh) → already at highest — keep same
+- If original was Simple (flash high) → upgrade to pro with xhigh thinking
+- If original was Medium/Complex (pro high) → upgrade to pro with xhigh thinking
 
 ## Step 3: Review
 
@@ -334,7 +451,12 @@ If the planner encounters a genuine blocker it cannot resolve via web search, it
 ## Hard Rules
 
 - NEVER do agents' work. Dispatch. They implement.
+- NEVER analyze error output, stack traces, test failures, or compilation errors — that is the subagent's job.
+- NEVER run diagnostic commands (`dart analyze`, `flutter test`) yourself — those are subagent tools only.
 - NEVER make architecture decisions. Escalate to user.
+- NEVER decide how to handle a failed workstream — always ask the user with structured options.
+- ALWAYS check for running subagents on every session start before dispatching.
+- ALWAYS check git log + git status to determine pipeline position on resume.
+- ALWAYS delegate test gate execution to a subagent — never run tests yourself.
 - All agents dispatched async — keep this session free for intercom.
-- Test gates (running `flutter test integration_test/`) are YOUR responsibility — run them after each test workstream.
 - The reviewer verifies tests exist per plan. They do NOT write new tests.
