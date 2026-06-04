@@ -1,299 +1,648 @@
 #!/usr/bin/env bash
+# =============================================================================
+# Flutter Dev Framework — Bootstrap Installer
+# =============================================================================
+# One-command setup from any git URL. Installs:
+#
+#   - pi extension packages (project-local, if no global pi)
+#   - Agent definitions (planner, feature-agent, reviewer)
+#   - Official Dart skills  via `npx skills add dart-lang/skills -a pi`
+#   - Official Flutter skills via `npx skills add flutter/skills -a pi`
+#   - Our enhanced skill versions (override same-named official ones)
+#   - Our custom-only skills (orchestrator, brainstorming, writing-plans, grill-me)
+#   - Framework docs (FRAMEWORK.md, AGENTS.md template, MODEL_STRATEGY.md)
+#   - Settings for pi npm packages
+#
+# Generic — works with ANY project. Not tied to Flutter specifically.
+#
+# Usage modes:
+#
+#   Mode 1 — In-place (clone IS the project):
+#       git clone <repo-url> my-project
+#       cd my-project && ./install.sh
+#
+#   Mode 2 — Into current directory (repo cloned alongside):
+#       git clone <repo-url> .framework
+#       cd my-project && .framework/install.sh
+#
+#   Mode 3 — Into a specific directory (creates if needed):
+#       ./install.sh /path/to/project
+#
+#   Mode 4 — One-liner from raw URL:
+#       bash <(curl -sL https://raw.githubusercontent.com/user/repo/main/install.sh) \
+#         /path/to/project
+# =============================================================================
+
 set -euo pipefail
 
-# =============================================================================
-# Flutter Dev Framework — Installer
-# =============================================================================
-# Installs the 8-agent TDD pipeline + all skills into any Flutter project.
-# Skills are fetched from their upstream GitHub repos.
-#
-# Usage:
-#   ./install.sh [target-directory]
-#
-#   target-directory: Path to the Flutter project (default: current directory)
-# =============================================================================
+# ── Color helpers ────────────────────────────────────────────────────────────
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
 
+info()  { printf "${CYAN}  •${NC} %s\n" "$1"; }
+ok()    { printf "${GREEN}  ✓${NC} %s\n" "$1"; }
+warn()  { printf "${YELLOW}  ⚠${NC} %s\n" "$1"; }
+fail()  { printf "${RED}  ✗${NC} %s\n" "$1"; }
+header(){ printf "\n${BOLD}── %s ──${NC}\n" "$1"; }
+
+# ── Configuration ────────────────────────────────────────────────────────────
+PI_PACKAGE="${PI_PACKAGE:-@earendil-works/pi-coding-agent}"
+PI_VERSION="${PI_VERSION:-latest}"
+
+# Our enhanced skills that override same-named official ones
+OUR_ENHANCED_SKILLS=(
+  dart-add-unit-test
+  flutter-add-integration-test
+  flutter-apply-architecture-best-practices
+)
+
+# Our custom-only skills (no official counterpart)
+OUR_CUSTOM_SKILLS=(
+  orchestrator
+  brainstorming
+  writing-plans
+  grill-me
+)
+
+# ── Self-locate ──────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TARGET="${1:-.}"
+
+# ── Help ─────────────────────────────────────────────────────────────────────
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [OPTIONS] [TARGET_DIR]
+
+Install the Flutter Dev Framework (agents, skills, settings) into any project.
+
+Options:
+  -y, --yes        Skip confirmation prompts
+  -h, --help       Show this help
+
+Arguments:
+  TARGET_DIR    Path to the project directory (default: current directory)
+
+Examples:
+  $(basename "$0")                             # Install into ./
+  $(basename "$0") my-new-project              # Create + install
+  $(basename "$0") /path/to/existing-project   # Install into existing project
+  bash <(curl -sL <raw-url>) my-project        # One-liner
+EOF
+  exit 0
+}
+
+# ── Parse arguments ──────────────────────────────────────────────────────────
+SKIP_CONFIRM=false
+TARGET=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -y|--yes)    SKIP_CONFIRM=true; shift ;;
+    -h|--help)   usage ;;
+    -*)
+      echo "Unknown option: $1"
+      usage
+      ;;
+    *)
+      TARGET="$1"
+      shift
+      ;;
+  esac
+done
+
+if [ -z "$TARGET" ]; then
+  TARGET="."
+fi
+
+# Resolve to absolute path
 TARGET="$(cd "$TARGET" 2>/dev/null && pwd || echo "$TARGET")"
 
-if [ ! -d "$TARGET" ]; then
-  echo "Error: Target directory '$TARGET' does not exist."
-  exit 1
-fi
+# ── Pre-flight checks ────────────────────────────────────────────────────────
+preflight() {
+  echo ""
+  echo "══════════════════════════════════════════════════════════════"
+  echo "  Flutter Dev Framework — Bootstrap Installer"
+  echo "══════════════════════════════════════════════════════════════"
+  echo ""
+  echo "  Source:  $SCRIPT_DIR"
+  echo "  Target:  $TARGET"
+  echo ""
 
-echo ""
-echo "══════════════════════════════════════════════════════"
-echo "  Flutter Dev Framework — Installer"
-echo "══════════════════════════════════════════════════════"
-echo ""
-echo "  Source:  $SCRIPT_DIR"
-echo "  Target:  $TARGET"
-echo ""
+  # Check essential tools
+  local missing=()
+  for cmd in git node npm; do
+    if ! command -v "$cmd" &>/dev/null 2>&1; then
+      missing+=("$cmd")
+    fi
+  done
 
-# ── Step 1: Copy agent definitions ──────────────────────────────────────────
-
-echo "── Step 1: Installing agent definitions (8 agents)..."
-mkdir -p "$TARGET/.pi/agents"
-COPIED=0
-for agent in "$SCRIPT_DIR/agents/"*.md; do
-  [ -f "$agent" ] || continue
-  name=$(basename "$agent")
-  if [ -f "$TARGET/.pi/agents/$name" ]; then
-    echo "  • $name (exists — skipped)"
-  else
-    cp "$agent" "$TARGET/.pi/agents/$name"
-    echo "  • $name"
-    COPIED=$((COPIED + 1))
+  if [ ${#missing[@]} -gt 0 ]; then
+    echo ""
+    fail "Missing required tools: ${missing[*]}"
+    echo "  Install them first, then re-run this script."
+    echo "  - git:   https://git-scm.com/downloads"
+    echo "  - node:  https://nodejs.org/"
+    echo ""
+    exit 1
   fi
-done
-echo "  → $COPIED agents installed"
 
-# ── Step 2: Copy our own skills ─────────────────────────────────────────────
-
-echo ""
-echo "── Step 2: Installing framework skills..."
-mkdir -p "$TARGET/.pi/skills"
-COPIED=0
-for skill_dir in "$SCRIPT_DIR/skills/"*/; do
-  [ -d "$skill_dir" ] || continue
-  name=$(basename "$skill_dir")
-  if [ -d "$TARGET/.pi/skills/$name" ]; then
-    echo "  • $name (exists — skipped)"
+  # Check if pi CLI is available
+  if command -v pi &>/dev/null 2>&1; then
+    PI_GLOBAL=true
+    ok "pi CLI found globally ($(pi --version 2>/dev/null || echo 'version unknown'))"
   else
-    cp -r "$skill_dir" "$TARGET/.pi/skills/$name"
-    COPIED=$((COPIED + 1))
+    PI_GLOBAL=false
+    warn "pi CLI not found globally — will install project-local"
   fi
-done
-echo "  → $COPIED framework skills installed"
 
-# ── Step 3: Fetch Dart skills from dart-lang/skills ──────────────────────────
+  # Check if skills CLI is available (part of vercel-labs/skills ecosystem)
+  if command -v skills &>/dev/null 2>&1; then
+    SKILLS_GLOBAL=true
+  else
+    SKILLS_GLOBAL=false
+  fi
 
-echo ""
-echo "── Step 3: Fetching Dart skills (dart-lang/skills)..."
+  # Confirm
+  if [ "$SKIP_CONFIRM" = false ]; then
+    echo ""
+    echo "  This will install into: ${BOLD}$TARGET${NC}"
+    if [ ! -d "$TARGET" ]; then
+      echo "  ℹ️  Directory doesn't exist — will be created."
+    fi
+    read -rp "  Continue? [Y/n] " REPLY
+    if [[ ! "$REPLY" =~ ^[Yy]?$ ]]; then
+      echo "  Aborted."
+      exit 0
+    fi
+  fi
+}
 
-DART_SKILLS=(
-  dart-add-unit-test
-  dart-collect-coverage
-  dart-fix-runtime-errors
-  dart-generate-test-mocks
-  dart-run-static-analysis
-  dart-use-pattern-matching
-)
+# ── Install pi CLI project-local ─────────────────────────────────────────────
+install_pi_local() {
+  local target="$1"
 
-DART_TMP=$(mktemp -d)
-trap "rm -rf $DART_TMP" EXIT
+  header "Installing pi CLI (project-local)"
 
-git clone --depth 1 --filter=blob:none --sparse \
-  https://github.com/dart-lang/skills.git "$DART_TMP" 2>&1 | tail -1
+  if [ ! -f "$target/package.json" ]; then
+    cd "$target"
+    npm init -y >/dev/null 2>&1
+    cd "$OLDPWD"
+  fi
 
-cd "$DART_TMP"
-git sparse-checkout set "${DART_SKILLS[@]/#/skills/}" 2>&1 | tail -1
+  cd "$target"
+  npm install --save-dev "$PI_PACKAGE@$PI_VERSION" 2>&1 | tail -2
+  cd "$OLDPWD"
 
-DART_COPIED=0
-for skill in "${DART_SKILLS[@]}"; do
-  if [ -d "skills/$skill" ]; then
-    if [ -d "$TARGET/.pi/skills/$skill" ]; then
-      echo "  • $skill (exists — skipped)"
-    else
-      cp -r "skills/$skill" "$TARGET/.pi/skills/$skill"
-      DART_COPIED=$((DART_COPIED + 1))
+  if [ -f "$target/node_modules/.bin/pi" ]; then
+    ok "pi CLI installed locally at node_modules/.bin/pi"
+    # Create convenience alias in .envrc (for direnv users)
+    if ! grep -q 'alias pi=' "$target/.envrc" 2>/dev/null; then
+      echo "alias pi='npx pi'" >> "$target/.envrc" 2>/dev/null || true
     fi
   else
-    echo "  ⚠️  $skill not found in upstream repo"
+    warn "pi CLI installation may have failed"
   fi
-done
-echo "  → $DART_COPIED Dart skills installed"
+}
 
-# ── Step 4: Fetch Flutter skills from flutter/skills ─────────────────────────
+# ── Install pi extension packages ───────────────────────────────────────────
+install_pi_packages() {
+  local target="$1"
 
-echo ""
-echo "── Step 4: Fetching Flutter skills (flutter/skills)..."
+  header "Installing pi extension packages"
 
-FLUTTER_SKILLS=(
-  flutter-add-integration-test
-  flutter-add-widget-preview
-  flutter-add-widget-test
-  flutter-apply-architecture-best-practices
-  flutter-build-responsive-layout
-  flutter-fix-layout-issues
-  flutter-implement-json-serialization
-  flutter-use-http-package
-)
+  local pi_cmd=""
+  if [ "$PI_GLOBAL" = true ] && command -v pi &>/dev/null; then
+    pi_cmd="pi"
+  elif [ -x "$target/node_modules/.bin/pi" ]; then
+    pi_cmd="npx pi"
+  fi
 
-FLUTTER_TMP=$(mktemp -d)
-trap "rm -rf $FLUTTER_TMP $DART_TMP" EXIT
+  if [ -z "$pi_cmd" ]; then
+    warn "pi CLI not available — skipping package installation"
+    warn "Install pi globally and re-run, or run manually:"
+    warn "  npm install -g $PI_PACKAGE"
+    return
+  fi
 
-git clone --depth 1 --filter=blob:none --sparse \
-  https://github.com/flutter/skills.git "$FLUTTER_TMP" 2>&1 | tail -1
+  # The packages to install (mirrors pi/settings.json)
+  local packages=(
+    "npm:pi-ask-user"
+    "npm:@plannotator/pi-extension"
+    "npm:intercom"
+    "npm:pi-intercom"
+    "npm:pi-subagents"
+  )
 
-cd "$FLUTTER_TMP"
-git sparse-checkout set "${FLUTTER_SKILLS[@]/#/skills/}" 2>&1 | tail -1
+  cd "$target"
+  for pkg in "${packages[@]}"; do
+    info "Installing $pkg"
+    $pi_cmd install -l "$pkg" 2>&1 | tail -1
+  done
+  cd "$OLDPWD"
 
-FLUTTER_COPIED=0
-for skill in "${FLUTTER_SKILLS[@]}"; do
-  if [ -d "skills/$skill" ]; then
-    if [ -d "$TARGET/.pi/skills/$skill" ]; then
-      echo "  • $skill (exists — skipped)"
+  ok "Extension packages installed"
+}
+
+# ── Copy agent definitions ───────────────────────────────────────────────────
+install_agents() {
+  local target="$1"
+  local source="$2"
+
+  header "Installing agent definitions"
+
+  mkdir -p "$target/.pi/agents"
+  local copied=0
+  local skipped=0
+
+  for agent in "$source/pi/agents/"*.md; do
+    [ -f "$agent" ] || continue
+    local name
+    name=$(basename "$agent")
+    if [ -f "$target/.pi/agents/$name" ]; then
+      skipped=$((skipped + 1))
     else
-      cp -r "skills/$skill" "$TARGET/.pi/skills/$skill"
-      FLUTTER_COPIED=$((FLUTTER_COPIED + 1))
+      cp "$agent" "$target/.pi/agents/$name"
+      info "$name"
+      copied=$((copied + 1))
     fi
+  done
+
+  echo "  → $copied installed, $skipped skipped"
+}
+
+# ── Install official skills via `npx skills add` ─────────────────────────────
+install_official_skills() {
+  local target="$1"
+
+  header "Installing official skills via 'npx skills add'"
+
+  # Ensure skills CLI is available
+  local skills_cmd=""
+  if [ "$SKILLS_GLOBAL" = true ]; then
+    skills_cmd="skills"
+  elif [ -x "$target/node_modules/.bin/skills" ]; then
+    skills_cmd="npx skills"
   else
-    echo "  ⚠️  $skill not found in upstream repo"
+    # Install skills CLI locally if not available
+    info "Installing skills CLI..."
+    cd "$target"
+    npm install --save-dev skills 2>&1 | tail -1
+    cd "$OLDPWD"
+    skills_cmd="npx skills"
   fi
-done
-echo "  → $FLUTTER_COPIED Flutter skills installed"
 
-# ── Step 5: Copy framework documentation ─────────────────────────────────────
+  # Install Dart skills from dart-lang/skills
+  info "Installing Dart skills (dart-lang/skills)..."
+  cd "$target"
+  $skills_cmd add dart-lang/skills -a pi -y 2>&1 | grep -E "(Installed|✓|✗|⚠|→|Error)" || true
+  cd "$OLDPWD"
+  echo ""
 
-echo ""
-echo "── Step 5: Installing framework documentation..."
-if [ -f "$TARGET/FRAMEWORK.md" ]; then
-  echo "  • FRAMEWORK.md (exists — skipped)"
-else
-  cp "$SCRIPT_DIR/FRAMEWORK.md" "$TARGET/FRAMEWORK.md"
-  echo "  • FRAMEWORK.md"
-fi
+  # Install Flutter skills from flutter/skills
+  info "Installing Flutter skills (flutter/skills)..."
+  cd "$target"
+  $skills_cmd add flutter/skills -a pi -y 2>&1 | grep -E "(Installed|✓|✗|⚠|→|Error)" || true
+  cd "$OLDPWD"
+}
 
-# ── Step 6: Configure settings.json ──────────────────────────────────────────
+# ── Override specific skills with our enhanced versions ──────────────────────
+apply_enhanced_skills() {
+  local target="$1"
+  local source="$2"
 
-echo ""
-echo "── Step 6: Configuring pi settings..."
-SETTINGS_FILE="$TARGET/.pi/settings.json"
+  header "Applying enhanced skill versions"
 
-if [ -f "$SETTINGS_FILE" ]; then
-  echo "  • settings.json exists — merging packages (requires python3)"
-  python3 -c "
-import json
-with open('$SETTINGS_FILE') as f:
+  local overridden=0
+
+  for skill in "${OUR_ENHANCED_SKILLS[@]}"; do
+    local src="$source/pi/skills/$skill"
+    if [ ! -d "$src" ]; then
+      warn "Enhanced skill '$skill' not found in source — skipping"
+      continue
+    fi
+
+    local dest="$target/.pi/skills/$skill"
+    if [ -d "$dest" ]; then
+      rm -rf "$dest"
+    fi
+    cp -r "$src" "$dest"
+    info "$skill (overridden)"
+    overridden=$((overridden + 1))
+  done
+
+  echo "  → $overridden enhanced skills applied"
+}
+
+# ── Install our custom-only skills ───────────────────────────────────────────
+install_custom_skills() {
+  local target="$1"
+  local source="$2"
+
+  header "Installing custom-only skills"
+
+  mkdir -p "$target/.pi/skills"
+  local copied=0
+
+  for skill in "${OUR_CUSTOM_SKILLS[@]}"; do
+    local src="$source/pi/skills/$skill"
+    if [ ! -d "$src" ]; then
+      warn "Skill '$skill' not found in source — skipping"
+      continue
+    fi
+
+    local dest="$target/.pi/skills/$skill"
+    if [ ! -d "$dest" ]; then
+      cp -r "$src" "$dest"
+      info "$skill"
+      copied=$((copied + 1))
+    else
+      info "$skill (exists — skipped)"
+    fi
+  done
+
+  echo "  → $copied installed"
+}
+
+# ── Copy framework docs ──────────────────────────────────────────────────────
+install_docs() {
+  local target="$1"
+  local source="$2"
+
+  header "Installing framework documentation"
+
+  for doc in FRAMEWORK.md MODEL_STRATEGY.md; do
+    if [ -f "$target/$doc" ]; then
+      info "$doc (exists — skipped)"
+    elif [ -f "$source/$doc" ]; then
+      cp "$source/$doc" "$target/$doc"
+      info "$doc"
+    else
+      warn "$doc missing in source — skipped"
+    fi
+  done
+
+  if [ -f "$target/AGENTS.md" ]; then
+    info "AGENTS.md (exists — skipped)"
+  elif [ -f "$source/AGENTS.md" ]; then
+    cp "$source/AGENTS.md" "$target/AGENTS.md"
+    info "AGENTS.md (copied as runtime config template — edit for your project)"
+  else
+    # Create minimal runtime config template
+    cat > "$target/AGENTS.md" << 'AGENTS_EOF'
+# AGENTS.md — Runtime Configuration Template
+
+## Project Identity
+
+| Field | Value |
+|---|---|
+| Project name | `[REQUIRED]` |
+| App type | `[Flutter app / Dart package / other]` |
+| Package/application id | `[REQUIRED for mobile build/install]` |
+
+## Project Paths
+
+| Path | Value |
+|---|---|
+| Spec | `[REQUIRED: path/to/spec.md]` |
+| App directory | `[REQUIRED for Flutter]` |
+| Plan output | `specs/plan.md` |
+| Review output | `specs/review.md` |
+| Mockups/screenshots | `[optional]` |
+| Generated artifacts | `[optional]` |
+
+## Quality Gates
+
+Use project-specific commands. Flutter default:
+
+```bash
+cd [app_dir]
+flutter pub get
+flutter analyze
+flutter test
+```
+AGENTS_EOF
+    info "AGENTS.md (template created)"
+  fi
+}
+
+# ── Configure settings.json ──────────────────────────────────────────────────
+install_settings() {
+  local target="$1"
+  local source="$2"
+
+  header "Configuring pi settings"
+
+  mkdir -p "$target/.pi"
+  local settings_file="$target/.pi/settings.json"
+  local template_file="$source/pi/settings.json"
+
+  if [ ! -f "$template_file" ]; then
+    warn "No settings template found — creating minimal settings"
+    cat > "$template_file" << 'JSONEOF'
+{
+  "packages": [
+    "npm:pi-ask-user",
+    "npm:@plannotator/pi-extension",
+    "npm:intercom",
+    "npm:pi-intercom",
+    "npm:pi-subagents"
+  ]
+}
+JSONEOF
+  fi
+
+  if [ -f "$settings_file" ]; then
+    info "settings.json exists — merging packages"
+    if command -v python3 &>/dev/null; then
+      python3 -c "
+import json, sys
+with open('$settings_file') as f:
     data = json.load(f)
-with open('$SCRIPT_DIR/settings.template.json') as f:
+with open('$template_file') as f:
     template = json.load(f)
 packages = data.get('packages', [])
+changed = False
 for pkg in template.get('packages', []):
     if pkg not in packages:
         packages.append(pkg)
         print(f'  • Added {pkg}')
+        changed = True
+if not changed:
+    print('  • All packages already present')
 data['packages'] = packages
-with open('$SETTINGS_FILE', 'w') as f:
+with open('$settings_file', 'w') as f:
     json.dump(data, f, indent=2)
     f.write('\n')
-" 2>/dev/null || {
-    echo "  ⚠️  python3 not available — copying template"
-    cp "$SCRIPT_DIR/settings.template.json" "$SETTINGS_FILE"
-  }
-else
-  cp "$SCRIPT_DIR/settings.template.json" "$SETTINGS_FILE"
-  echo "  • settings.json (created)"
+"
+    else
+      warn "python3 not available — overwriting with template"
+      cp "$template_file" "$settings_file"
+    fi
+  else
+    cp "$template_file" "$settings_file"
+    info "settings.json (created)"
+  fi
+}
+
+# ── Print summary ────────────────────────────────────────────────────────────
+print_summary() {
+  local target="$1"
+
+  echo ""
+  echo "══════════════════════════════════════════════════════════════"
+  echo "  ${GREEN}Installation Complete${NC}"
+  echo "══════════════════════════════════════════════════════════════"
+  echo ""
+
+  local agent_count=0
+  for f in "$target/.pi/agents/"*.md; do
+    [ -f "$f" ] && agent_count=$((agent_count + 1))
+  done
+
+  local skill_count=0
+  for d in "$target/.pi/skills/"*/; do
+    [ -d "$d" ] && skill_count=$((skill_count + 1))
+  done
+
+  echo "  ${BOLD}Framework root:${NC} $target"
+  echo "  ${BOLD}Agents:${NC}         $agent_count  (.pi/agents/)"
+  echo "  ${BOLD}Skills:${NC}         $skill_count  (.pi/skills/)"
+  echo "  ${BOLD}Docs:${NC}           FRAMEWORK.md, AGENTS.md, MODEL_STRATEGY.md"
+  echo "  ${BOLD}Settings:${NC}       .pi/settings.json"
+  echo ""
+
+  if [ "$PI_GLOBAL" = false ] && [ ! -x "$target/node_modules/.bin/pi" ]; then
+    echo "  ${YELLOW}⚠️  pi CLI was not installed. To install:${NC}"
+    echo "     npm install --save-dev $PI_PACKAGE"
+    echo "     or globally: npm install -g $PI_PACKAGE"
+    echo ""
+  fi
+
+  echo "  ${BOLD}Next steps:${NC}"
+  echo "    1. Edit AGENTS.md with your runtime project details"
+  echo "    2. Review MODEL_STRATEGY.md and run /models if you want overrides"
+  echo "    3. Run: ${CYAN}/name orchestrator${NC}"
+  echo "    4. Run: ${CYAN}Orchestrator, begin Phase 0.${NC}"
+  echo ""
+}
+
+# ══════════════════════════════════════════════════════════════════════════════
+# MAIN
+# ══════════════════════════════════════════════════════════════════════════════
+
+preflight
+
+# Create target directory if it doesn't exist
+if [ ! -d "$TARGET" ]; then
+  mkdir -p "$TARGET"
+  ok "Created target directory: $TARGET"
 fi
 
-# ── Step 7: Install npm packages ─────────────────────────────────────────────
-
-echo ""
-echo "── Step 7: Installing npm packages..."
-if command -v pi &> /dev/null; then
-  cd "$TARGET"
-  pi install 2>&1 | tail -3
-  echo "  → Packages installed"
-else
-  echo "  ⚠️  'pi' not found. Run 'pi install' manually."
+# Install pi CLI if not globally available
+if [ "$PI_GLOBAL" = false ]; then
+  install_pi_local "$TARGET"
 fi
 
-# ── Step 8: Create template AGENTS.md ────────────────────────────────────────
+# ── Core installation ────────────────────────────────────────────────────────
 
+# Step 1: Agent definitions
+install_agents "$TARGET" "$SCRIPT_DIR"
+
+# Step 2: Official skills via npx skills add
+install_official_skills "$TARGET"
+
+# Step 3: Override specific official skills with our enhanced versions
+apply_enhanced_skills "$TARGET" "$SCRIPT_DIR"
+
+# Step 4: Install our custom-only skills
+install_custom_skills "$TARGET" "$SCRIPT_DIR"
+
+# Step 5: Framework documentation
+install_docs "$TARGET" "$SCRIPT_DIR"
+
+# Step 6: Settings
+install_settings "$TARGET" "$SCRIPT_DIR"
+
+# Step 7: pi extension packages
+install_pi_packages "$TARGET"
+
+# ── Verification ─────────────────────────────────────────────────────────────
 echo ""
-echo "── Step 8: Creating AGENTS.md template..."
-if [ -f "$TARGET/AGENTS.md" ]; then
-  echo "  • AGENTS.md (exists — skipped)"
+header "Verifying installation"
+
+verify_ok=true
+
+# Agents
+agent_count=$(find "$TARGET/.pi/agents" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+if [ "$agent_count" -ge 3 ]; then
+  ok "Agents: $agent_count files in .pi/agents/"
 else
-  cat > "$TARGET/AGENTS.md" << 'AGENTS_EOF'
-# AGENTS.md — [Project Name]
-
-> **App directory:** `[app_dir]/` | **Package:** `[com.example.app]`
-
-## Pipeline Configuration
-
-```yaml
-planning:
-  max_rounds: 3
-
-review:
-  max_rounds: 3
-
-artifacts:
-  dir: specs/phase-N/
-  plan: plan.md
-  stories: stories.md
-  tests: tests-report.md
-  implementation: impl-report.md
-  reviews: reviews/
-    code: code-review-r{N}.md
-    test: test-review-r{N}.md
-```
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Framework | Flutter |
-| State | Riverpod |
-| Database | drift (SQLite) |
-| Routing | go_router |
-| Testing | flutter_test, mockito |
-
-## Architecture
-
-```
-[app_dir]/
-├── lib/
-│   ├── core/          # Theme, constants, extensions
-│   ├── data/          # Database, APIs, repositories
-│   └── features/      # Feature screens
-├── test/              # Unit + widget tests
-└── integration_test/  # Integration + E2E tests
-```
-
-## Design Tokens
-
-| Token | Value |
-|-------|-------|
-| Primary | #000000 |
-| Background | #FFFFFF |
-| Font | Roboto, 16sp body |
-
-## Shared Contracts
-
-```dart
-// Providers
-final databaseProvider = Provider<AppDatabase>((ref) => ...);
-
-// Routes
-'/home', '/settings', ...
-```
-AGENTS_EOF
-  echo "  • AGENTS.md (template created)"
+  warn "Agents: only $agent_count files (expected ≥3)"
+  verify_ok=false
 fi
 
-# ── Done ─────────────────────────────────────────────────────────────────────
+# Skills
+skill_count=$(find "$TARGET/.pi/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
+if [ "$skill_count" -ge 10 ]; then
+  ok "Skills: $skill_count in .pi/skills/"
+else
+  warn "Skills: only $skill_count (expected ≥10)"
+  verify_ok=false
+fi
 
-echo ""
-echo "══════════════════════════════════════════════════════"
-echo "  Installation Complete"
-echo "══════════════════════════════════════════════════════"
-echo ""
-echo "  Installed:"
-echo "    • 8 agents          (.pi/agents/)"
-echo "    • 17 skills total:"
-echo "        $COPIED framework  (.pi/skills/ — brainstorming, grill-me, writing-plans)"
-echo "        $DART_COPIED Dart      (.pi/skills/ — from dart-lang/skills)"
-echo "        $FLUTTER_COPIED Flutter   (.pi/skills/ — from flutter/skills)"
-echo "    • Framework docs     (FRAMEWORK.md)"
-echo "    • pi settings        (.pi/settings.json)"
-echo "    • AGENTS.md template"
-echo ""
-echo "  Next:"
-echo "    1. Edit AGENTS.md with your project details"
-echo "    2. /name orchestrator"
-echo "    3. Orchestrator, begin Phase 0."
-echo ""
+# Custom skills
+for skill in "${OUR_CUSTOM_SKILLS[@]}"; do
+  if [ -f "$TARGET/.pi/skills/$skill/SKILL.md" ]; then
+    ok "Custom skill: $skill"
+  else
+    warn "Missing custom skill: $skill"
+    verify_ok=false
+  fi
+done
+
+# Enhanced skills — verify our version (with marker) won
+for skill in "${OUR_ENHANCED_SKILLS[@]}"; do
+  if [ -f "$TARGET/.pi/skills/$skill/SKILL.md" ]; then
+    if grep -q "last_modified" "$TARGET/.pi/skills/$skill/SKILL.md" 2>/dev/null; then
+      ok "Enhanced skill: $skill"
+    else
+      info "Skill: $skill (official version)"
+    fi
+  else
+    warn "Missing skill: $skill"
+    verify_ok=false
+  fi
+done
+
+# Docs
+for doc in FRAMEWORK.md AGENTS.md MODEL_STRATEGY.md; do
+  if [ -f "$TARGET/$doc" ]; then
+    ok "Doc: $doc"
+  else
+    warn "Missing doc: $doc"
+    verify_ok=false
+  fi
+done
+
+# Settings
+if [ -f "$TARGET/.pi/settings.json" ]; then
+  ok "Settings: .pi/settings.json"
+else
+  warn "Missing: .pi/settings.json"
+  verify_ok=false
+fi
+
+print_summary "$TARGET"
+
+if [ "$verify_ok" = false ]; then
+  echo ""
+  warn "Some items need attention (see above). You may re-run the installer."
+  echo ""
+else
+  echo ""
+  ok "All checks passed."
+  echo ""
+fi

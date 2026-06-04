@@ -1,462 +1,244 @@
 ---
 name: orchestrator
-description: Multi-phase Flutter development pipeline. Planner → Feature agents (workstreams + test gates) → Reviewer (verification-only) → Quality Gate.
+description: Project-agnostic reliability-first pipeline. Resolves runtime config, dispatches planner/feature/reviewer agents, enforces approval gates, recovery, tests, build, and review.
 ---
 
-# Orchestrator — Multi-Phase Pipeline
+# Orchestrator — Project-Agnostic Reliability Pipeline
 
-You orchestrate the Flutter development pipeline. You are a procedure, not an agent. Follow the steps. Dispatch subagents. Do NOT do their work yourself.
+You are a coordinator procedure, not an implementer. You dispatch agents, collect decisions, enforce gates, and keep the user in control.
 
-## Pipeline
+## Core rule
 
+Never hardcode project-specific paths, package names, tech stack, or product behavior. Resolve them from:
+
+1. the user's start prompt,
+2. `AGENTS.md` in the target project,
+3. explicit `ask_user` answers.
+
+If required information is missing, ask exactly one focused question at a time.
+
+## Reliability-first pipeline
+
+```text
+Phase 0: Resolve config + scaffold/check environment
+  ↓ user approval
+Planner: validate/create implementation plan
+  ↓ user approval
+For each workstream in dependency order:
+  Feature-agent implements exactly one W/IT/E2E workstream
+  Gate commands run
+  Commit verified
+  ↓ optional user checkpoint at configured gates
+Reviewer: fresh-context review against spec + plan + tests
+  ↓ fixes/re-review if needed
+Final quality gate: analyze + tests + build/install/smoke as configured
 ```
-planner → specs/plan.md (includes W{N}, IT{N}, E2E{N} workstreams)
-  → for each workstream in dependency order:
-      if Feature (W{N}):     feature-agent → implement + test + commit
-      if Integration (IT{N}): feature-agent → write integration tests + commit
-      if E2E (E2E{N}):      feature-agent → write E2E tests + commit
-  → After each test workstream: subagent runs test gate (orchestrator delegates)
-  → After all workstreams: ONE reviewer (fresh context, sees ALL diffs, verifies tests per plan)
-  → if blockers: fix affected workstreams → re-review
-  → Quality Gate (enhanced — verifies test presence, count, coverage)
-```
 
-## Before Starting
+## Step 0 — Resume and recovery
 
-1. Name your session: `/name [your-name]`
-2. Read `AGENTS.md` for project configuration (auto-injected into all agents)
+Run on every orchestrator session start.
 
-## Step 0: Resume & Recovery
+1. Check for running subagents:
 
-Run this on EVERY session start — first launch and after any interruption.
-
-### 1. Check for Running Subagents
-
-```
+```text
 subagent({ action: "status" })
 ```
 
-- **If running agents exist:** Let them complete naturally. Do NOT guess timeouts — the subagent's own retry logic handles stalling. Lightweight-poll until completion.
-  - If the agent succeeds → proceed to Step 0.2 (determine pipeline position via git).
-  - If the agent fails → go to Step 2e (Failed Workstream).
+- If agents are running, wait/poll lightly until completion.
+- If a subagent fails, go to **Failed workstream decision**.
 
-- **If no agents running:** Proceed to Step 0.2.
-
-### 2. Determine Pipeline Position from Git
+2. Inspect git state:
 
 ```bash
-git log --oneline -n 10
 git status --short
+git log --oneline -n 20
 ```
 
-- **`git log`** shows recent commits. Identify the last one matching a workstream pattern (`W{N}:`, `IT{N}:`, `E2E{N}:`). This tells you which workstreams are fully complete.
-  - If no workstream commits exist → the pipeline hasn't started. Proceed to Step 1.
-- **`git status --short`** checks for uncommitted changes.
-  - **Clean tree:** No interrupted work. Read `{PLAN_PATH}`, find the next workstream after the last committed one, and dispatch fresh.
-  - **Dirty tree:** A previous subagent was interrupted mid-workstream. Dispatch a subagent to resume from the partial work:
+- Clean tree: infer last completed workstream from commit messages.
+- Dirty tree: ask user whether to resume in-place or reset before dispatching another agent.
+- Not a git repo: ask whether to initialize git before continuing. Reliability-first default is to require git.
 
-```
-subagent({
-  agent: "flutter-dev.feature-agent",
-  task: "Complete workstream {W{N}}: {name} from the plan at {PLAN_PATH}.
-    The previous attempt was interrupted — there is partial work in the tree.
-    Try to complete this workstream. If the state is too inconsistent
-    (build errors, half-written files, broken generated code), reset to
-    HEAD with `git reset --hard HEAD` and start fresh.
-    Commit with message 'W{N}: {name}' when done.
-    If unable to complete after 2 attempts, report failure and stop.",
-  model: "{determined model}",
-  thinking: "{determined thinking}",
-  context: "fresh",
-  async: true
-})
-```
+## Step 1 — Resolve runtime configuration
 
-  Wait for completion.
-  - Success → proceed to Step 1 (determine next workstream from plan + git log).
-  - Failure → go to Step 2e (Failed Workstream).
+Read `AGENTS.md` if present. Then resolve these values:
 
-## Step 1: Resolve Project Paths
+| Variable | Required? | Default if missing |
+|---|---:|---|
+| `PROJECT_ROOT` | Yes | current working directory if user confirms |
+| `APP_TYPE` | Yes | ask user |
+| `APP_DIR` | Yes for Flutter | ask user |
+| `SPEC_PATH` | Yes | ask user |
+| `PLAN_PATH` | Yes | `specs/plan.md` |
+| `REVIEW_PATH` | Yes | `specs/review.md` |
+| `INTEGRATION_TEST_PATH` | For Flutter tests | `[APP_DIR]/integration_test/` |
+| `PACKAGE_ID` | For mobile build/install | ask user if device gate enabled |
+| `MOCKUPS_PATH` | No | none |
+| `DESIGN_SYSTEM_PATH` | No | none |
+| `GENERATED_ARTIFACTS_PATH` | No | none |
+| `BUILD_INSTRUCTIONS_PATH` | No | none |
 
-AGENTS.md is auto-injected in context. Check if it has a `## Project Paths` table.
+Ask for missing required values with `ask_user`. Do not combine unrelated questions.
 
-For each path below, use the AGENTS.md value if present. If missing, ask the user:
+## Step 2 — Phase 0 environment/scaffold check
 
-```
-ask_user({
-  question: "What is the {path description}?",
-  allowFreeform: true,
-  context: "Needed for agent dispatch. Provide a path relative to project root."
-})
-```
+For Flutter projects:
 
-| Variable | Default (if not in AGENTS.md) | Ask user if missing |
-|----------|-------------------------------|---------------------|
-| `{SPEC_PATH}` | `docs/spec.md` | ✅ Yes — spec is required for planning |
-| `{MOCKUPS_PATH}` | (skip if not provided) | 🟡 Optional — only if visual mockups exist |
-| `{APP_DIR}` | `.` (project root) | ✅ Yes — needed for build/deploy |
-| `{PLAN_PATH}` | `specs/plan.md` | ❌ No — sensible default |
-| `{REVIEW_PATH}` | `specs/review.md` | ❌ No — sensible default |
-| `{INTEGRATION_TEST_PATH}` | `integration_test/` | ❌ No — sensible default |
-| `{PACKAGE_NAME}` | (ask user) | ✅ Yes — needed for adb launch |
-
-Once resolved, remember these values for all subsequent dispatches.
-
-### Step 1a: Scaffold Flutter Project (if missing)
-
-Check if `{APP_DIR}` exists:
+1. Check whether `[APP_DIR]/pubspec.yaml` exists.
+2. If missing, ask user whether to scaffold now.
+3. If scaffolding is approved, ask for `flutter create` inputs if not configured:
+   - project name
+   - organization (`--org`)
+   - platforms
+4. Run only approved scaffold commands.
+5. Install dependencies only from runtime config/spec/build instructions.
+6. Copy or preserve generated artifacts only when runtime config explicitly points to them.
+7. Run initial gate:
 
 ```bash
-ls {APP_DIR}/pubspec.yaml 2>/dev/null && echo "EXISTS" || echo "MISSING"
-```
-
-**If the directory exists and has `pubspec.yaml`:** → skip to Dispatch Planner.
-
-**If the directory is MISSING or has no `pubspec.yaml`:**
-
-1. Ask the user for the project name (default: the basename of `{APP_DIR}`, e.g., `the_little_library_app`):
-
-```
-ask_user({
-  question: "The Flutter project at '{APP_DIR}' doesn't exist yet. What should the project be called?",
-  allowFreeform: true,
-  allowComment: true,
-  context: "This will be the directory name created by 'flutter create'. All agents work inside this directory."
-})
-```
-
-2. Ask for the package/organization name (default: `{PACKAGE_NAME}`, e.g., `com.abhijits.thelittlelibrary`):
-
-```
-ask_user({
-  question: "What package/org name should the Flutter project use?",
-  allowFreeform: true,
-  allowComment: true,
-  context: "This is passed as --org to flutter create (e.g., 'com.example' creates 'com.example.myapp'). AGENTS.md has '{PACKAGE_NAME}'."
-})
-```
-
-3. Create the Flutter project:
-
-```bash
-flutter create --org {org} --platforms android,ios {APP_DIR}
-```
-
-4. Update `{APP_DIR}` in AGENTS.md if the user chose a different name than what was listed.
-
-5. Add required dependencies to `pubspec.yaml` (these come from the tech stack in AGENTS.md):
-
-```bash
-cd {APP_DIR}
-flutter pub add flutter_riverpod riverpod_annotation riverpod_generator drift sqlite3_flutter_libs path_provider
-flutter pub add dev:build_runner dev:drift_dev dev:riverpod_generator dev:riverpod_annotation dev:mockito dev:integration_test dev:flutter_test
-```
-
-6. Create the directory structure from AGENTS.md (including the `{PLAN_PATH}` and `{REVIEW_PATH}` parent directories — defaults to `specs/`):
-
-```bash
-mkdir -p lib/core lib/data/database lib/data/api lib/data/sync lib/data/repositories lib/features lib/l10n
-mkdir -p $(dirname {PLAN_PATH}) $(dirname {INTEGRATION_TEST_PATH})
-touch lib/core/theme.dart lib/core/constants.dart
-```
-
-7. Run initial code generation:
-
-```bash
-dart run build_runner build --delete-conflicting-outputs
+cd [APP_DIR]
+flutter pub get
 flutter analyze
-```
-
-8. Commit the scaffold:
-
-```bash
-git add -A && git commit -m "Initial scaffold: Flutter project with dependencies"
-```
-
-### Dispatch Planner
-
-```
-subagent({
-  agent: "flutter-dev.planner",
-  task: "Read the spec at {SPEC_PATH} and mockups at {MOCKUPS_PATH}.
-    Produce {PLAN_PATH} with dependency-ordered workstreams. Include:
-    - Feature workstreams (W{N}) for each feature/foundation piece.
-    - Integration test workstreams (IT{N}) after layer completions.
-    - E2E test workstreams (E2E{N}) after complete user stories.
-    Use web_search and fetch_content tools for any fact verification needed.",
-  async: true
-})
-```
-
-Read `{PLAN_PATH}`. **Present to user with this checklist:**
-
-- ✅ **Coverage** — Every feature from the spec has a feature workstream?
-- ✅ **Dependencies** — Foundation before features? No circular deps?
-- ✅ **Granularity** — Each feature workstream ≤ 8 files? Test workstreams ≤ 3 files?
-- ✅ **Tiering** — Simple→Flash, Foundation→Pro xhigh? Makes sense?
-- ✅ **Test placement** — IT workstreams after layer completions? E2E after story completions?
-- ✅ **Test journeys** — Each IT/E2E has 2-3 concrete journeys listed?
-- ✅ **Miss anything?** — Auth, error handling, edge cases?
-
-Ask for approval before proceeding.
-
-## Step 2: Workstream Loop
-
-For each workstream in dependency order from `specs/plan.md`:
-
-### Step 2a: Determine workstream type
-
-Read the `Type:` field from the plan for the current workstream.
-
-### Step 2b: Dispatch Feature (W{N}) Workstream
-
-```
-Determine model/thinking override from tier:
-  Foundation → opencode-go/deepseek-v4-pro, thinking: xhigh
-  Simple     → opencode-go/deepseek-v4-flash, thinking: high
-  otherwise  → opencode-go/deepseek-v4-pro, thinking: high  (default from agent frontmatter)
-
-subagent({
-  agent: "flutter-dev.feature-agent",
-  model: "{determined model}",
-  thinking: "{determined thinking}",
-  context: "fresh",
-  task: "Implement Feature workstream W{N}: {name}.
-    Plan section: {PLAN_PATH} (section W{N})
-    Type: Feature
-    Files: {file list from plan}
-    Tests: {test file paths from plan}
-    Dependencies: {list} — read their files for context if needed.
-    Implement → test → analyze → collect coverage → commit with message 'W{N}: {name}'.
-    If tests don't pass after 2 attempts, report failure and stop.",
-  async: true
-})
-```
-
-Wait for completion. Verify the commit exists (`git log -1`). Show git log to the user.
-
-### Step 2c: Dispatch Integration Test (IT{N}) Workstream
-
-```
-subagent({
-  agent: "flutter-dev.feature-agent",
-  model: "opencode-go/deepseek-v4-pro",
-  thinking: "high",
-  context: "fresh",
-  task: "Implement Integration Test workstream IT{N}: {name}.
-    Plan section: {PLAN_PATH} (section IT{N})
-    Type: Integration Test
-    Files to create: {paths under integration_test/}
-    Journeys: {list from plan}
-    Dependencies: {feature workstreams being integrated}
-    Write integration tests → run flutter test integration_test/ → analyze → commit with message 'IT{N}: {name}'.
-    Verify ALL listed journeys are covered. Use IntegrationTestWidgetsFlutterBinding (modern approach).
-    If tests don't pass after 2 attempts, report failure and stop.",
-  async: true
-})
-```
-
-Wait for completion. **Run test gate via subagent:**
-
-```
-subagent({
-  agent: "flutter-dev.feature-agent",
-  model: "opencode-go/deepseek-v4-pro",
-  thinking: "high",
-  context: "fresh",
-  task: "Run integration test gate for workstream IT{N}: {name}.
-    Plan section: {PLAN_PATH} (section IT{N})
-    Run: `cd {APP_DIR} && flutter test integration_test/`
-    If all tests pass: report TEST GATE PASSED.
-    If any tests fail: produce a structured failure report listing
-      each failed test, the error message, and any suspected cause.
-    Do NOT modify any production or test files — verification-only.",
-  async: true
-})
-```
-
-Read the subagent's gate report. If tests passed → proceed to next workstream. If tests failed → go to Step 2e (Failed Workstream).
-
-### Step 2d: Dispatch End-to-End Test (E2E{N}) Workstream
-
-```
-subagent({
-  agent: "flutter-dev.feature-agent",
-  model: "opencode-go/deepseek-v4-pro",
-  thinking: "high",
-  context: "fresh",
-  task: "Implement End-to-End Test workstream E2E{N}: {name}.
-    Plan section: {PLAN_PATH} (section E2E{N})
-    Type: End-to-End Test
-    Files to create: {paths under integration_test/}
-    User story: {from plan}
-    Journeys: {list from plan}
-    Dependencies: {feature + IT workstreams}
-    Write E2E tests → run flutter test integration_test/ → analyze → commit with message 'E2E{N}: {name}'.
-    Verify the complete user story is exercised. Use IntegrationTestWidgetsFlutterBinding.
-    If tests don't pass after 2 attempts, report failure and stop.",
-  async: true
-})
-```
-
-Wait for completion. **Run test gate via subagent:**
-
-```
-subagent({
-  agent: "flutter-dev.feature-agent",
-  model: "opencode-go/deepseek-v4-pro",
-  thinking: "high",
-  context: "fresh",
-  task: "Run End-to-End test gate for workstream E2E{N}: {name}.
-    Plan section: {PLAN_PATH} (section E2E{N})
-    Run: `cd {APP_DIR} && flutter test integration_test/`
-    If all tests pass: report TEST GATE PASSED.
-    If any tests fail: produce a structured failure report listing
-      each failed test, the error message, and any suspected cause.
-    Do NOT modify any production or test files — verification-only.",
-  async: true
-})
-```
-
-Read the subagent's gate report. If tests passed → proceed to next workstream. If tests failed → go to Step 2e (Failed Workstream).
-
-### Step 2e: Failed Workstream — Escalate to User
-
-When any subagent reports failure (including test gates):
-  → Do NOT analyze the error output, stack traces, or test logs.
-  → Do NOT run any diagnostic commands.
-  → Your ONLY action is to present the failure report to the user with structured options:
-
-```
-ask_user({
-  question: "Workstream {W{N}} has failed.",
-  context: "{concise failure summary from subagent report}",
-  options: [
-    { title: "🔁 Reset & Re-dispatch (same model)",
-      description: "git reset --hard HEAD, then fresh subagent with original model/thinking from tier" },
-    { title: "🔁 Reset & Re-dispatch (upgraded model)",
-      description: "git reset --hard HEAD, then fresh subagent with more capable model + higher thinking" },
-    { title: "🔄 Re-dispatch without reset (same model)",
-      description: "Keep working tree, new subagent fixes in-place with original model/thinking" },
-    { title: "🔄 Re-dispatch without reset (upgraded model)",
-      description: "Keep working tree, new subagent fixes in-place with more capable model + higher thinking" },
-    { title: "⏭️ Skip workstream",
-      description: "Mark skipped and proceed to next workstream" },
-    { title: "⏸️ Abort pipeline",
-      description: "Stop the entire pipeline" }
-  ],
-  allowFreeform: true,
-  allowComment: true
-})
-```
-
-**Orchestrator action based on user's choice:**
-
-| User choice | Orchestrator action |
-|-------------|-------------------|
-| Reset & Re-dispatch (same model) | `git reset --hard HEAD` then dispatch fresh subagent with original model/thinking from plan tier |
-| Reset & Re-dispatch (upgraded) | `git reset --hard HEAD` then dispatch fresh subagent with upgraded model/thinking |
-| Re-dispatch without reset (same model) | Dispatch fresh subagent with failure context + "fix in-place" instruction, same model/thinking |
-| Re-dispatch without reset (upgraded) | Dispatch fresh subagent with failure context + "fix in-place" instruction, upgraded model/thinking |
-| Skip | Note the skipped workstream, proceed to next |
-| Abort | Stop pipeline, report to user |
-| Custom model in freeform | Use the typed model name with xhigh thinking |
-
-**Upgraded model tier mapping:**
-- If original tier was Foundation (pro xhigh) → already at highest — keep same
-- If original was Simple (flash high) → upgrade to pro with xhigh thinking
-- If original was Medium/Complex (pro high) → upgrade to pro with xhigh thinking
-
-## Step 3: Review
-
-After ALL workstreams (feature + IT + E2E) complete, dispatch ONE reviewer:
-
-```
-subagent({
-  agent: "flutter-dev.reviewer",
-  task: "Review all workstream changes AND verify integration/E2E tests conform to the plan.
-    Read the spec at {SPEC_PATH} and plan at {PLAN_PATH}.
-    Run git diff. Run dart analyze, flutter test, flutter test integration_test/.
-    Check coverage with dart run coverage:test_with_coverage.
-    Verify every IT{N} and E2E{N} workstream's test files exist and cover planned journeys.
-    Do NOT write new tests — verify what exists against the plan.
-    Output: {REVIEW_PATH}.",
-  context: "fresh",
-  async: true
-})
-```
-
-Read `specs/review.md`. Count BLOCKERS.
-
-- **Zero BLOCKERS** → Quality Gate
-- **BLOCKERS > 0** → for each blocked workstream, dispatch feature-agent with fix instructions → re-review → gate or escalate
-
-## Step 4: Quality Gate
-
-```bash
-cd {APP_DIR}
-flutter clean && flutter pub get && dart run build_runner build --delete-conflicting-outputs --force-jit
-flutter analyze
-```
-
-If `flutter analyze` has errors → BLOCKER. Fix before continuing.
-
-```bash
 flutter test
 ```
 
-Count passed/failed. If any unit or widget tests fail → BLOCKER.
+If code generation is configured:
 
 ```bash
-flutter test integration_test/
+dart run build_runner build --delete-conflicting-outputs
 ```
 
-Count passed/failed. Verify:
+Commit scaffold only after gates pass.
 
-1. **All planned test files exist:** For each IT{N} and E2E{N} in the plan, confirm the corresponding file in `integration_test/` exists.
-2. **All tests pass:** Zero failures.
-3. **Legacy check:** No test file uses `flutter_driver` or `enableFlutterDriverExtension()` — all must use `IntegrationTestWidgetsFlutterBinding`.
+## Step 3 — Dispatch planner
 
-If any of these fail → BLOCKER.
+Dispatch the planner with all resolved paths and instructions:
+
+```text
+subagent({
+  agent: "flutter-dev.planner",
+  context: "fresh",
+  async: true,
+  task: "Create or validate the implementation plan. Runtime config: ... Write to [PLAN_PATH]. Preserve existing/generated artifacts when configured. Include Feature, Integration Test, and E2E workstreams with exact files, acceptance criteria, dependencies, and model/thinking recommendations."
+})
+```
+
+After completion:
+
+1. Read the plan.
+2. Present a concise checklist to the user:
+   - spec coverage
+   - dependency order
+   - workstream granularity
+   - integration/E2E placement
+   - model/thinking assignments
+   - unresolved assumptions
+3. Ask for approval before implementation.
+
+## Step 4 — Workstream loop
+
+For each workstream in dependency order:
+
+1. Parse workstream ID, type, dependencies, file list, tests, tier, model guidance.
+2. Select model/thinking using `MODEL_STRATEGY.md` if available and runtime `/models` if user provided it.
+3. Dispatch `feature-agent` with exactly one workstream.
+4. Wait for completion.
+5. Verify commit exists and tree is clean.
+6. Run/dispatch gate as configured.
+7. Continue only if successful or the user approves a recovery option.
+
+### Model selection default
+
+Use `MODEL_STRATEGY.md` when present. Always choose a thinking level supported by the selected model.
+
+| Workstream | First attempt | Thinking |
+|---|---|---|
+| Broad planning / huge scan | `opencode-go/deepseek-v4-pro` | xhigh |
+| Foundation | `openai-codex/gpt-5.5` | high |
+| Complex | `openai-codex/gpt-5.5` or `openai-codex/gpt-5.3-codex` | high |
+| Medium | `openai-codex/gpt-5.3-codex` | high |
+| Simple | `opencode-go/deepseek-v4-flash` or `openai-codex/gpt-5.4-mini` | high |
+| IT/E2E | `openai-codex/gpt-5.3-codex` | high |
+| Review | `openai-codex/gpt-5.5` | high |
+| Retry after failure | `openai-codex/gpt-5.5` | high |
+
+Compatibility notes:
+- `openai-codex/gpt-5.5` supports `low`, `medium`, `high`; do **not** use `xhigh`.
+- `opencode-go/deepseek-v4-pro` and `opencode-go/deepseek-v4-flash` support `high` and `xhigh`.
+- If concrete model names are unavailable, use agent frontmatter defaults.
+
+## Failed workstream decision
+
+Do not debug failures yourself. Present the failure report with options:
+
+```text
+ask_user({
+  question: "Workstream [ID] failed. How should we proceed?",
+  context: "Concise subagent failure summary + git status.",
+  options: [
+    "Reset and retry with same model",
+    "Reset and retry with upgraded model",
+    "Retry in-place with same model",
+    "Retry in-place with upgraded model",
+    "Skip workstream",
+    "Abort pipeline"
+  ],
+  allowFreeform: true
+})
+```
+
+Act only on the user's choice.
+
+## Step 5 — Reviewer gate
+
+After a configured phase or all workstreams complete, dispatch reviewer:
+
+```text
+subagent({
+  agent: "flutter-dev.reviewer",
+  context: "fresh",
+  async: true,
+  task: "Review completed workstreams against runtime config, spec [SPEC_PATH], plan [PLAN_PATH], and actual code. Run configured gates. Verify integration/E2E tests. Write report to [REVIEW_PATH]."
+})
+```
+
+Read review report:
+
+- `APPROVE`: proceed to quality gate.
+- `NEEDS FIXES`: dispatch fixes to feature-agent by workstream and re-review.
+- unresolved blockers after max rounds: ask user.
+
+## Step 6 — Quality gate
+
+Use project-specific commands from runtime config. Flutter default:
 
 ```bash
-flutter build apk --debug
-adb install -r build/app/outputs/flutter-apk/app-debug.apk
-adb shell am start -n {PACKAGE_NAME}/.MainActivity
+cd [APP_DIR]
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs  # only if configured
+flutter analyze
+flutter test
+flutter test integration_test/                            # if integration tests exist
+flutter build apk --debug                                # if Android gate enabled
+adb install -r build/app/outputs/flutter-apk/app-debug.apk # if device attached/enabled
+adb shell am start -n [PACKAGE_ID]/.MainActivity          # if package id configured
 ```
 
-Then run smoke tests on device to verify the app launches and key flows work.
+Do not declare success if required commands fail or were skipped without user approval.
 
-### Quality Gate Checklist
+## Visual/golden-test rule
 
-Run this verification before declaring success:
+If mockup screenshots are provided:
 
-- [ ] `flutter analyze` — zero errors, zero warnings
-- [ ] `flutter test` — all unit/widget tests pass
-- [ ] `flutter test integration_test/` — all integration/E2E tests pass
-- [ ] All IT{N} test files from plan exist in `integration_test/`
-- [ ] All E2E{N} test files from plan exist in `integration_test/`
-- [ ] No legacy `flutter_driver` usage in integration tests
-- [ ] `flutter build apk --debug` succeeds
-- [ ] App installs and launches on device
+- Treat mockups as immutable source-of-truth references.
+- Do not overwrite them with `flutter test --update-goldens`.
+- Use generated Flutter goldens as separate baselines only after user approval.
+- Prefer a visual discrepancy report when exact pixel matching is unrealistic.
 
-## Research
+## Hard rules
 
-The planner handles its own research using `web_search` and `fetch_content` tools — no orchestrator involvement, no researcher agent, no intercom coordination needed.
-
-The orchestrator does NOT need to monitor intercom during planning. The planner is self-sufficient.
-
-If the planner encounters a genuine blocker it cannot resolve via web search, it can escalate via `contact_supervisor({ reason: "need_decision", message: "..." })`. Reply directly with guidance rather than dispatching a researcher.
-
-## Hard Rules
-
-- NEVER do agents' work. Dispatch. They implement.
-- NEVER analyze error output, stack traces, test failures, or compilation errors — that is the subagent's job.
-- NEVER run diagnostic commands (`dart analyze`, `flutter test`) yourself — those are subagent tools only.
-- NEVER make architecture decisions. Escalate to user.
-- NEVER decide how to handle a failed workstream — always ask the user with structured options.
-- ALWAYS check for running subagents on every session start before dispatching.
-- ALWAYS check git log + git status to determine pipeline position on resume.
-- ALWAYS delegate test gate execution to a subagent — never run tests yourself.
-- All agents dispatched async — keep this session free for intercom.
-- The reviewer verifies tests exist per plan. They do NOT write new tests.
+- Do not implement code yourself.
+- Do not review code yourself beyond reading reports and enforcing gates.
+- Do not make architecture decisions without user approval.
+- Do not assume missing project details.
+- Do not skip git/review/test gates in reliability-first mode.
+- Keep project-specific facts in runtime config, not this skill.

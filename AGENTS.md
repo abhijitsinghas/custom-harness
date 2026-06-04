@@ -1,238 +1,128 @@
-# AGENTS.md — The Little Library v2
+# AGENTS.md — Project Runtime Configuration Template
 
-> **Flutter Android app** for cataloging a home library (~10–12 cupboards/bookshelves).
-> **Package:** `com.abhijits.thelittlelibrary`
+> This file is intentionally **project-agnostic**. Copy/edit it in the target project after installing the harness. The orchestrator and agents must treat this as runtime configuration, not hardcoded product knowledge.
+
+## How agents should use this file
+
+- Read this file first.
+- If a required value is missing, ask the user exactly one focused question via `ask_user`.
+- Do not assume product-specific paths, package names, features, tech stack, or design artifacts.
+- Prefer values passed in the orchestrator start prompt over values in this template.
+- Keep implementation constrained to the configured app directory.
+
+---
+
+## Project Identity
+
+| Field | Value |
+|---|---|
+| Project name | `[REQUIRED: e.g. My App]` |
+| App type | `[Flutter app / Dart package / other]` |
+| Primary platform | `[Android / iOS / web / desktop / multi-platform]` |
+| Package/application id | `[REQUIRED for mobile build/install, e.g. com.example.app]` |
+| Organization for `flutter create --org` | `[e.g. com.example]` |
+
+---
 
 ## Project Paths
 
-Paths referenced by agents. Override these for different projects.
+All paths are relative to the project root unless absolute.
 
-| Path | Value |
-|------|-------|
-| Spec | `docs/spec-v2.md` |
-| Mockups | `docs/The-Little-Library---Proto-2/` |
-| App directory | `the_little_library_app/` |
-| Integration tests | `integration_test/` |
-| Plan output | `specs/plan.md` |
-| Review output | `specs/review.md` |
-| Package name | `com.abhijits.thelittlelibrary` |
-
-## Pipeline Configuration
-
-```yaml
-orchestrator:
-  pipeline: multi-phase   # planner → feature-agent × N (with test gates) → reviewer
-  test_phases: true        # Planner injects IT{N} and E2E{N} workstreams between feature groups
-
-planning:
-  max_rounds: 2            # Self-critique rounds for planner (optional, 1-2 max)
-  test_workstreams: true   # Planner creates dedicated integration (IT) and E2E workstreams
-
-review:
-  max_rounds: 2            # Max feedback rounds per reviewer
-  test_verification: true   # Reviewer verifies integration/E2E tests exist per plan — does NOT author them
-```
+| Path | Value | Required? |
+|---|---:|---:|
+| Product spec | `[path/to/SPEC.md]` | Yes |
+| User stories | `[optional path/to/user-stories.md]` | No |
+| Design system | `[optional path/to/design.md]` | No |
+| Mockups/screenshots | `[optional path/to/mockups/]` | No |
+| Existing generated code/artifacts | `[optional path/to/generated/]` | No |
+| Flutter app directory | `[app_dir/]` | Yes for Flutter |
+| Plan output | `specs/plan.md` | Yes |
+| Review output | `specs/review.md` | Yes |
+| Integration test directory | `[app_dir]/integration_test/` | Yes for Flutter |
+| Build instructions | `[optional path/to/build-instructions.md]` | No |
 
 ---
 
-## Tech Stack
+## Runtime Decisions
 
-| Layer | Technology | Version |
-|-------|-----------|---------|
-| Framework | Flutter (Android primary, iOS-compatible) | 3.x |
-| State Management | Riverpod (`flutter_riverpod` + `riverpod_annotation` + `riverpod_generator`) | 2.x |
-| Local Database | drift (SQLite) + FTS5 | 2.x |
-| OCR | google_mlkit_text_recognition | latest |
-| Barcode | google_mlkit_barcode_scanning | latest |
-| HTTP | `http` package | latest |
-| Google APIs | googleapis + google_sign_in | latest |
-| Image Capture | image_picker | latest |
-| STT | speech_to_text | latest |
-| Routing | go_router | latest |
-| Auth | google_sign_in | latest |
-| Testing | `flutter_test`, `package:test`, mockito, build_runner | — |
-| Linting | flutter_lints (recommended) | — |
-| Coverage | `coverage` package | latest |
+| Decision | Value |
+|---|---|
+| Implementation priority | `Reliability/quality first` |
+| Approval style | `Ask before architecture/scaffold/plan/recovery decisions` |
+| Workstream style | `Gated workstreams with commits` |
+| Test strategy | `Unit + widget + integration/E2E where applicable` |
+| Visual validation | `Use mockups as immutable references; avoid overwriting source-of-truth screenshots` |
+| Git policy | `Commit after each successful workstream` |
 
 ---
 
-## Architecture (Enforced)
+## Technology Stack
 
-### Layered Architecture — MVVM + Repository Pattern
+Fill only what applies. Agents must not infer missing values without asking.
 
-```
-the_little_library/              ← orchestrator workspace (current directory)
-├── AGENTS.md                    ← architecture, conventions, shared contracts
-├── docs/                        ← specs, implementation plan, mockups
-├── specs/                       ← task specs and roadmap
-├── .pi/                         ← agent definitions, chains, skills
-└── the_little_library_app/      ← Flutter project — ALL app code lives here
-    ├── pubspec.yaml
-    ├── lib/
-    │   ├── core/               # Theme, constants, extensions, i18n (l10n/)
-    │   ├── data/               # Database, API, sync, repositories
-    │   └── features/           # All feature screens
-    ├── test/                   # Unit + widget tests
-    └── integration_test/       # Integration + E2E tests
+| Layer | Technology / Package | Notes |
+|---|---|---|
+| UI framework | `[Flutter version/channel]` |  |
+| State management | `[e.g. Riverpod, Provider, Bloc]` |  |
+| Routing | `[e.g. go_router]` |  |
+| Local persistence | `[e.g. Drift, Isar, Hive, SQLite]` |  |
+| Remote API | `[e.g. Supabase, REST, GraphQL]` |  |
+| Auth | `[e.g. Supabase Auth, Firebase Auth]` |  |
+| Code generation | `[e.g. build_runner, riverpod_generator, json_serializable]` |  |
+| Testing | `[flutter_test, integration_test, mockito/mocktail, patrol]` |  |
 
-### Separation of Concerns (NEVER violate)
+---
 
-- **UI Layer:** Widgets only. No business logic. No direct database access. Use `ref.watch(provider)` and `ref.read(provider.notifier)`.
-- **Logic Layer:** Riverpod providers (AsyncNotifier, Notifier). Expose immutable state. Call repositories. Never import Flutter `material.dart` in providers.
-- **Data Layer:** Repositories consume Services/DAOs. Return Domain Models. Handle caching, offline, retry.
+## Architecture Rules
 
-### Riverpod Conventions
+Replace this section with project-specific rules. The defaults below are safe for medium/large Flutter apps.
 
-- Use `@riverpod` annotation + code generation (`riverpod_generator`). Never manually create providers.
-- Override providers in tests with `ProviderContainer(overrides: [...])` or `ProviderScope(overrides: [...])`.
-- Async state renders with `AsyncValue.when(data:, loading:, error:)`.
-- No `setState` outside of truly local ephemeral widget state (e.g., text field focus, animation controller).
+- UI widgets must not contain business logic or direct database/network access.
+- State/controllers/view-models call repositories/services.
+- Data repositories own persistence/API details and return typed domain/data models.
+- Generated files must not be manually edited.
+- No hardcoded design tokens in feature UI if a theme/design system exists.
+- Tests should verify behavior, not implementation details.
+- Accessibility: tappable targets ≥ 48dp, semantic labels for icon-only actions, sufficient contrast.
 
-### Drift Conventions
+---
 
-- All tables extend `Table`. Columns defined as getters.
-- DAOs use `@DriftAccessor` annotation.
-- Run `dart run build_runner build` after every schema change.
-- In tests, use in-memory SQLite: `AppDatabase.memory()`.
-- Generated files (`*.g.dart`) are never edited manually.
+## Quality Gates
 
-### Model Conventions
+For Flutter projects, use these unless the runtime prompt overrides them:
 
-- Generated drift data classes are the canonical models. No separate domain model layer.
-- For API responses, create DTO classes with `fromJson`/`toJson` in `data/api/`.
-- Repositories transform API DTOs → drift data classes.
-
-### Testing Conventions
-
-- **Unit tests:** `ProviderContainer()` with overrides. Use in-memory drift DB: `AppDatabase.memory()`. Mock API clients with mockito.
-- **Widget tests:** `ProviderScope(overrides: [...])` wrapping `MaterialApp`.
-- **Test naming:** `test("should [behavior] when [condition]", ...)`. Include story ID.
-
-### Code Quality
-
-- Run `dart analyze` before committing. Zero warnings, zero errors.
-- Coverage targets: 90% controllers, 85% repositories, 70% widgets, 100% planned integration/E2E journeys must pass.
-
-### Build & Deploy (Per Phase)
-
-After every phase completes, build and deploy to the connected Android device:
 ```bash
-cd the_little_library_app
-flutter clean
+cd [app_dir]
 flutter pub get
-dart run build_runner build --delete-conflicting-outputs --force-jit
+# If code generation is configured:
+dart run build_runner build --delete-conflicting-outputs
 flutter analyze
-flutter test                    # Unit tests
-flutter test integration_test/  # Integration + E2E tests
+flutter test
+# If integration tests exist:
+flutter test integration_test/
 flutter build apk --debug
+```
+
+For Android device smoke test, if configured:
+
+```bash
 adb install -r build/app/outputs/flutter-apk/app-debug.apk
-adb shell am start -n com.abhijits.thelittlelibrary/.MainActivity
+adb shell am start -n [package_id]/.MainActivity
 ```
-Then run smoke tests on device to verify the app launches and key flows work.
-
-### Test Layers (All Phases Must Cover)
-
-| Layer | Location | Runs With | Purpose | Coverage Target |
-|-------|----------|-----------|---------|----------------|
-| **Unit** | `test/` | `flutter test` | Individual functions, DAOs, providers, validators | 90% controllers, 85% repos |
-| **Widget** | `test/` | `flutter test` | Screen rendering, interactions, state changes | 70% widgets |
-| **Integration** | `integration_test/` | `flutter test integration_test/` | Multi-screen flows, data layer ↔ UI | All planned IT journeys pass |
-| **E2E** | `integration_test/` | `flutter test integration_test/` | Full user journeys on device | All planned E2E journeys pass |
-
-### Test Workstream Naming
-
-Planner creates dedicated test workstreams interleaved with feature workstreams:
-
-| Prefix | Type | Location | Description |
-|--------|------|----------|-------------|
-| `W{N}` | Feature | `lib/` + `test/` | Feature implementation + unit/widget tests |
-| `IT{N}` | Integration | `integration_test/` only | Multi-screen/data-layer tests spanning 2+ feature workstreams |
-| `E2E{N}` | End-to-End | `integration_test/` only | Full user journeys exercising complete features/stories |
-
-**Test workstream placement rules:**
-- `IT` workstreams are placed after foundational layers complete (schema, repos, core UI)
-- `E2E` workstreams are placed after a complete user story is delivered (e.g., Add Book + Browse + View Details)
-- Test workstreams may read from any `lib/` file but must only create/modify files in `integration_test/`
 
 ---
 
-## Shared Contracts (All Agents Reference These)
+## Model Profile
 
-### Riverpod Providers
+Default recommendation: `reliability-first`.
 
-```dart
-// Database
-final databaseProvider = Provider<AppDatabase>((ref) => ...);
+| Role | Recommended capability | Thinking |
+|---|---|---|
+| Orchestrator | Fast/reliable coordinator | high |
+| Planner | Huge-context reasoning/planning model | highest supported; usually `xhigh` for DeepSeek |
+| Feature agent — foundation/complex | Strongest coding model | highest supported; `high` for GPT-5.5 |
+| Feature agent — medium | Strong coding model | high |
+| Feature agent — simple | Fast coding model | high |
+| Reviewer | Strongest code-review model | highest supported; `high` for GPT-5.5 |
 
-// Repositories
-final bookRepoProvider = Provider<BookRepository>((ref) => ...);
-final locationRepoProvider = Provider<LocationRepository>((ref) => ...);
-final genreRepoProvider = Provider<GenreRepository>((ref) => ...);
-final tagRepoProvider = Provider<TagRepository>((ref) => ...);
-final languageRepoProvider = Provider<LanguageRepository>((ref) => ...);
-final loanRepoProvider = Provider<LoanRepository>((ref) => ...);
-final changeLogRepoProvider = Provider<ChangeLogRepository>((ref) => ...);
-
-// Auth
-final authStateProvider = StateProvider<AuthState>((ref) => ...);
-
-// Sync
-final syncStateProvider = StateProvider<SyncState>((ref) => ...);
-```
-
-### Route Names
-
-```dart
-'/catalog', '/book/:id', '/book/add', '/book/edit/:id',
-'/scanner/barcode', '/scanner/ocr', '/voice-input',
-'/locations', '/checkout/:bookId', '/loan/:bookId',
-'/conflicts', '/activity', '/settings',
-'/settings/genres', '/settings/tags', '/settings/languages',
-'/deleted', '/active-loans', '/export',
-'/share-library', '/change-history/:bookId',
-'/setup', '/force-update', '/bulk-scanner'
-```
-
-### Design Tokens (from mockups)
-
-| Token | Value |
-|-------|-------|
-| Primary | `#5D4037` (warm brown) |
-| On Primary | `#FFFFFF` |
-| Primary Container | `#EADDCF` (cream) |
-| Secondary | `#FFA000` (amber) |
-| Surface | `#FFF8F0` (off-white) |
-| Background | `#FAFAF5` (warm grey) |
-| Font | Roboto, 16sp body, 14sp secondary |
-| Device target | 412×900dp frame, responsive |
-
-
----
-
-## Key Constraints
-
-- Never use `setState` outside local ephemeral widget state.
-- Never manually create `StateNotifierProvider` or `ChangeNotifierProvider`.
-- Never edit generated files (`*.g.dart`).
-- Never write tests that validate implementation details — test behavior.
-- Never add features not in the acceptance criteria (no gold-plating).
-- Never make architecture decisions without approval.
-- Always use UUID v4 for all primary keys.
-- Always record change log events on every write operation.
-- Always soft-delete — never physically purge records.
-- Always use Material Design 3 widgets only.
-- Always use the theme from `lib/core/theme.dart` — never hardcode colors.
-
----
-
-## Non-Functional Requirements
-
-| Requirement | Target |
-|-------------|--------|
-| Offline-first | All core features work without internet |
-| Performance | Book list renders smoothly with 2000+ books; search < 300ms |
-| Storage | Cover images max 800px wide, JPEG quality 80% |
-| Sync bandwidth | Incremental: only changed DB + new covers |
-| Accessibility | Tappable targets ≥ 48px, semantic labels, sufficient contrast |
-| Error handling | Graceful degradation, never crash on bad input/network/permissions |
-| Data integrity | FK constraints, transactions for multi-table writes, soft deletes |
+Concrete model names depend on the local Pi/provider configuration. See `MODEL_STRATEGY.md` in this harness for suggested mappings and thinking-level constraints.

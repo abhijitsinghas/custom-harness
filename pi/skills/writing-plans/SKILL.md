@@ -93,8 +93,8 @@ Integration test workstreams validate cross-workstream interactions. They create
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:the_little_library/app.dart';
-import 'package:the_little_library/data/database/database.dart';
+import 'package:your_app/app.dart';
+import 'package:your_app/data/database/database.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();

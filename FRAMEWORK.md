@@ -1,239 +1,171 @@
-# Flutter Dev Framework
+# Project-Agnostic Flutter/Dart Reliability Harness
 
-> **8 specialised agents. Typed handoff contracts. Versioned reviews. Project-agnostic.**
->
-> Copy `.pi/agents/` to any Flutter project, write an `AGENTS.md`, start building.
+> Planner → one-workstream implementer → fresh-context reviewer → quality gates.  
+> Product-specific information is supplied at runtime through `AGENTS.md`, start prompts, and `ask_user` answers.
 
----
+## Design goals
 
-## Why This Exists
-
-AI agents write code. They also write tests that pass by construction, skip edge cases, and mark their own homework. The feedback loop collapses.
-
-This framework enforces **information isolation**: no agent sees what the previous one wrote. The story-writer never sees the code. The implementer never sees the spec — only the tests. The reviewers see everything but never edit. Problems can't be silently reconciled — they surface as failures.
-
----
-
-## The 8 Agents
-
-| # | Agent | Model | Thinking | Tools | Does |
-|---|-------|-------|----------|-------|------|
-| 1 | `orchestrator` | deepseek-v4-flash | high | read, write, edit, bash, glob, subagent, intercom | Dispatch, monitor, enforce pipeline, run quality gate |
-| 2 | `planner` | kimi-k2.6 | xhigh | read, write, edit, bash, glob | Scope phases, decompose workstreams, order dependencies |
-| 3 | `story-writer` | kimi-k2.6 | xhigh | read, write, edit, bash, glob | User stories from spec + mockups: happy paths, edges, errors, empty states, accessibility |
-| 4 | `test-writer` | deepseek-v4-pro | xhigh | read, write, edit, bash, glob | Unit, widget, integration, E2E tests from user stories |
-| 5 | `data-implementer` | deepseek-v4-pro | xhigh | read, write, edit, bash, glob | Data layer: drift tables, DAOs, repositories, API clients, sync, auth |
-| 6 | `ui-implementer` | qwen3.6-plus | xhigh | read, write, edit, bash, glob | UI layer: screens, widgets, navigation, state wiring from mockups |
-| 7 | `code-reviewer` | kimi-k2.5 | xhigh | read, bash, glob | Read-only: check implementation against user stories, run analysis |
-| 8 | `test-reviewer` | qwen3.5-plus | xhigh | read, bash, glob | Read-only: check test coverage and quality against user stories |
-
-### Subagent Configuration
-
-| Parameter | Workers (agents 2-8) | Orchestrator (agent 1) |
-|-----------|----------------------|------------------------|
-| `inheritProjectContext` | `false` | `true` |
-| `inheritSkills` | `false` | `true` |
-| `systemPromptMode` | `replace` | `replace` |
-| `tools` | read+write (implementers), read-only (reviewers) | + subagent + intercom |
-
-### Skills Per Agent
-
-| Agent | Skills |
-|-------|--------|
-| orchestrator | pi-subagents, pi-intercom |
-| planner | brainstorming, writing-plans, flutter-apply-architecture-best-practices, ask-user |
-| story-writer | brainstorming, flutter-apply-architecture-best-practices |
-| test-writer | dart-add-unit-test, dart-generate-test-mocks, dart-collect-coverage, flutter-add-widget-test, flutter-add-integration-test |
-| data-implementer | flutter-implement-json-serialization, flutter-apply-architecture-best-practices, flutter-use-http-package, dart-use-pattern-matching |
-| ui-implementer | flutter-build-responsive-layout, flutter-add-widget-preview, flutter-apply-architecture-best-practices, flutter-add-widget-test, flutter-fix-layout-issues |
-| code-reviewer | dart-run-static-analysis, dart-collect-coverage, plannotator-review |
-| test-reviewer | dart-run-static-analysis, dart-collect-coverage |
+1. **Project-agnostic agents** — no product names, paths, package ids, or features are hardcoded in agents/skills.
+2. **Reliability first** — plan approval, scoped workstreams, tests, review, and build gates are mandatory unless the user explicitly relaxes them.
+3. **Runtime configuration** — each project provides specs, paths, stack, and rules through `AGENTS.md` or the orchestrator start prompt.
+4. **Fresh-context review** — implementation and review are separated.
+5. **Recoverable execution** — git state and workstream commits determine resume position.
 
 ---
 
-## The Pipeline (Per Phase)
+## Installed agents
 
-```
-PLAN → STORIES → TESTS → IMPLEMENT → REVIEW → FIX → GATE
-  │       │         │         │           │        │      │
-  │       │         │         │      ┌────┴────┐ ┌─┴──┐   │
-  │       │         │         │  code-reviewer test-   │
-  │       │         │         │                reviewer │
-  │       │         │         │      │              │    │
-  │       │         │         │  ┌───┴───┐    ┌────┴───┐│
-  │       │         │         │implementer  test-writer │
-  │       │         │         │           story-writer  │
-  │       │         │         │                         │
-  │       │         │    [feedback: max 3 rounds]       │
-  │       │         │                                   │
-  ▼       ▼         ▼         ▼                         ▼
-plan.md stories.md tests.md impl-report.md         APK on device
-```
+| Agent | Role | Default model | Thinking |
+|---|---|---|---:|
+| `planner` | Reads config/spec/artifacts/code and writes dependency-ordered workstreams | `openai-codex/gpt-5.5` | high |
+| `feature-agent` | Implements exactly one Feature/IT/E2E workstream and commits when green | `openai-codex/gpt-5.3-codex` | high |
+| `reviewer` | Reviews completed workstreams against spec/plan/tests/gates | `openai-codex/gpt-5.5` | high |
 
-### Step-by-Step
+The orchestrator is a skill/procedure, not a coding agent. It dispatches these agents and asks the user for missing or high-stakes decisions.
 
-| Step | Agent | Reads | Writes |
-|------|-------|-------|--------|
-| 1 | planner | Spec, roadmap, AGENTS.md | `specs/phase-N/plan.md` |
-| 2 | story-writer | `plan.md`, spec, mockups | `specs/phase-N/stories.md` |
-| 3 | test-writer | `stories.md` | `specs/phase-N/tests-report.md` + test files |
-| 4a | data-implementer | `tests-report.md`, plan | Production code + `specs/phase-N/impl-report.md` |
-| 4b | ui-implementer | `tests-report.md`, plan, mockups | Production code + `specs/phase-N/impl-report.md` |
-| 5a | code-reviewer | All artifacts + git diff | `specs/phase-N/reviews/code-review-r{N}.md` |
-| 5b | test-reviewer | All artifacts + test files | `specs/phase-N/reviews/test-review-r{N}.md` |
-| 6 | orchestrator | Review files | Dispatching fixes or escalating |
+Model choices are defaults. See `MODEL_STRATEGY.md` for runtime override guidance and supported thinking-level constraints. In particular, do not assign `xhigh` to `openai-codex/gpt-5.5`; use `high`.
 
 ---
 
-## Handoff Protocol
+## Runtime configuration
 
-Every agent reads one artifact, writes one artifact. The orchestrator passes file paths only.
+A target project should contain an `AGENTS.md` based on this harness template. Required values include:
 
-```
-specs/phase-N/
-├── plan.md                    ← planner output
-├── stories.md                 ← story-writer output
-├── tests-report.md            ← test-writer output (coverage map + summary)
-├── impl-report.md             ← implementer output (changed files + test status)
-└── reviews/
-    ├── code-review-r1.md      ← code-reviewer, round 1
-    ├── code-review-r2.md      ← code-reviewer, round 2
-    ├── code-review-r3.md      ← code-reviewer, round 3
-    ├── test-review-r1.md      ← test-reviewer, round 1
-    ├── test-review-r2.md      ← test-reviewer, round 2
-    └── test-review-r3.md      ← test-reviewer, round 3
-```
+- project name
+- app type
+- app directory
+- spec path
+- plan output path
+- review output path
+- package/application id for mobile build/install gates
+- tech stack and architecture rules
+- quality gates
 
-### Artifact Formats
+If values are missing, the orchestrator/agents ask the user. They must not invent values.
 
-**plan.md**
-```markdown
-# Phase N Plan
-## Workstreams (ordered by dependency)
-## Integration/E2E Test Scenarios
-```
+---
 
-**stories.md**
-```markdown
-# User Stories — Phase N
-## Happy Path
-### US-1: [Title]
-**As a** [role] **I want to** [action] **So that** [benefit]
-**Given** ... **When** ... **Then** ...
-## Edge Cases | Error States | Empty States | Accessibility
-```
+## Pipeline
 
-**tests-report.md**
-```markdown
-# Test Report — Phase N
-## Coverage Map
-| Story ID | Test File | Test Name | Type |
-## Uncovered Stories
-## Test Execution: All FAIL (expected)
-```
-
-**impl-report.md**
-```markdown
-# Implementation Report — Phase N
-## Changed Files | Test Status | Decisions Made | Issues Found
-```
-
-**code-review-r{N}.md**
-```markdown
-# Code Review — Phase N, Round {N}
-**Round:** {N} of {max}
-## BLOCKER — Must Fix | SHOULD FIX | NICE TO HAVE
-## Resolved from Round {N-1}
-## Verdict: APPROVE / NEEDS FIXES ({N} blockers)
-```
-
-**test-review-r{N}.md**
-```markdown
-# Test Review — Phase N, Round {N}
-**Coverage:** [X%] | **Stories:** [N/M covered]
-## MISSING COVERAGE → Story-Writer | TEST QUALITY → Test-Writer
-## Resolved from Round {N-1}
-## Verdict: APPROVE / NEEDS FIXES ({N} issues)
+```text
+0. Resolve runtime config and environment
+1. Optional scaffold / dependency setup
+2. Planner creates or validates plan
+3. User approves plan
+4. Feature-agent executes one workstream at a time
+5. Gate after each workstream or configured phase
+6. Reviewer verifies implementation and tests
+7. Fix/re-review loop for blockers
+8. Final quality gate and smoke test
 ```
 
 ---
 
-## Review Rounds
+## Workstream types
 
-Configured in `AGENTS.md`:
+### Feature workstream — `W{N}`
 
-```yaml
-review:
-  max_rounds: 3
-```
+Creates/modifies production code plus unit/widget tests. Examples:
 
-After each round, the orchestrator evaluates:
+- app scaffold
+- theme/router setup
+- repository + provider + screen slice
+- database schema addition
+- feature UI and behavior
 
-| Condition | Action |
-|-----------|--------|
-| Zero BLOCKERS in both reviews | → Quality gate |
-| BLOCKERS remain, round < 3 | → Dispatch fixes, increment round (`r1` → `r2` → `r3`) |
-| BLOCKERS remain, round = 3 | → Escalate to user with unresolved issues |
+### Integration test workstream — `IT{N}`
 
-Each review file tracks its round and resolved issues. Reviewers are read-only — they never edit code. Their findings route through the orchestrator to the right agent:
-- `code-reviewer` → data-implementer or ui-implementer
-- `test-reviewer` → test-writer (quality issues) or story-writer (coverage gaps)
+Creates integration tests only, usually after a layer or cross-feature boundary is complete. Examples:
+
+- onboarding → catalog
+- add item → list → detail
+- checkout → return
+
+### End-to-end test workstream — `E2E{N}`
+
+Creates complete user journey tests only. Examples:
+
+- new user creates account/library and adds first item
+- duplicate prevention journey
+- offline local-first journey
 
 ---
 
-## Quality Gate (Every Phase)
+## Recommended gates for Flutter projects
 
 ```bash
-cd [APP_DIR]
-flutter clean && flutter pub get && dart run build_runner build --delete-conflicting-outputs
-flutter analyze                     # Zero warnings
-flutter test                        # Unit + widget
-flutter test integration_test/      # Integration + E2E
-dart run coverage:test_with_coverage # 90/85/70 thresholds
+cd [app_dir]
+flutter pub get
+# if code generation is configured
+dart run build_runner build --delete-conflicting-outputs
+flutter analyze
+flutter test
+# if integration tests exist
+flutter test integration_test/
+# if Android build is configured
 flutter build apk --debug
+```
+
+Optional device smoke gate:
+
+```bash
 adb install -r build/app/outputs/flutter-apk/app-debug.apk
-adb shell am start -n [PACKAGE_NAME]/.MainActivity
+adb shell am start -n [package_id]/.MainActivity
 ```
 
 ---
 
-## Project Structure
+## Visual validation policy
 
-```
-project/
-├── AGENTS.md                           ← Architecture, conventions, review config, design tokens
-├── docs/                               ← Specs, implementation plan, UI mockups
-├── .pi/
-│   ├── agents/                         ← 8 agent definitions (this framework)
-│   ├── skills/                         ← Flutter + Dart skills
-│   └── settings.json                   ← npm packages (pi-subagents, pi-intercom, etc.)
-└── [app_dir]/                          ← Flutter project (created by Phase 0)
-    ├── lib/                            ← All production code
-    ├── test/                           ← Unit + widget tests
-    └── integration_test/               ← Integration + E2E tests
-```
+When design screenshots/mockups are supplied:
+
+- treat the source mockups as immutable references;
+- do not overwrite them with `flutter test --update-goldens`;
+- store Flutter-generated goldens separately;
+- use visual discrepancy reports when exact pixel matching is unrealistic.
 
 ---
 
-## Hard Constraints
+## Failure recovery
 
-| Agent | Never |
-|-------|-------|
-| orchestrator | Analyze code, debug, implement, review, make architecture decisions |
-| planner | Implement, test, review code |
-| story-writer | Write code or tests |
-| test-writer | Write production code |
-| implementers | Modify test files, add features not in tests |
-| reviewers | Edit code or tests — read-only, report findings only |
+On workstream failure, the orchestrator does not debug. It asks the user to choose:
+
+1. reset and retry with same model
+2. reset and retry with upgraded model
+3. retry in-place with same model
+4. retry in-place with upgraded model
+5. skip workstream
+6. abort pipeline
+
+Reliability-first default: reset/retry or upgraded retry; skipping requires explicit user approval.
 
 ---
 
-## How to Start
+## Hard boundaries
 
-```
-1. /models                          ← Verify opencode-go models available
-2. /name orchestrator               ← Name your session
-3. Orchestrator, begin Phase 0. Confirm the plan before dispatching any agents.
+| Role | Must not do |
+|---|---|
+| Orchestrator | implement, review code deeply, decide architecture alone, debug failures itself |
+| Planner | implement code or tests |
+| Feature-agent | touch files outside assigned scope, make unapproved architecture decisions |
+| Reviewer | modify production code or author missing tests |
+
+---
+
+## Start prompt pattern
+
+```text
+Orchestrator, begin Phase 0 for this project.
+Runtime inputs:
+- App type: Flutter Android app
+- Spec: SPEC.md
+- App directory: my_app/
+- Mockups: design-assets/screenshots/
+- Plan output: specs/plan.md
+- Review output: specs/review.md
+- Package id: com.example.myapp
+- Priority: reliability/quality first
+Ask me for any missing required information.
 ```
 
-The orchestrator reads `AGENTS.md` for project paths and conventions. Pi auto-loads `AGENTS.md` into every session. The orchestrator dispatches agents. You review and approve at each gate.
+The concrete paths and features above are examples. Replace them for each project.

@@ -1,241 +1,135 @@
 ---
 name: flutter-apply-architecture-best-practices
-description: Architects a Flutter application using Riverpod with the MVVM + Repository layered approach. Use when structuring a new project or refactoring for scalability.
+description: Apply project-agnostic Flutter architecture best practices. Defaults to layered UI/logic/data separation and can adapt to the runtime-configured state management, routing, persistence, and code generation stack.
 metadata:
   model: models/gemini-3.1-pro-preview
-  last_modified: 2026-05-30
+  last_modified: 2026-06-04
 ---
-# Architecting Flutter Applications with Riverpod
 
-## Contents
-- [Architectural Layers](#architectural-layers)
-- [Project Structure](#project-structure)
-- [Riverpod Patterns](#riverpod-patterns)
-- [Workflow: Implementing a New Feature](#workflow-implementing-a-new-feature)
-- [Examples](#examples)
+# Flutter Architecture Best Practices
 
-## Architectural Layers
+Use this skill when structuring a Flutter project, adding a feature, reviewing architecture, or refactoring for scalability.
 
-Enforce strict Separation of Concerns by dividing the application into distinct layers. Never mix UI rendering with business logic or data fetching. Use Riverpod for all state management and dependency injection.
+## First: read runtime config
 
-### UI Layer (Presentation)
-- **Views:** Reusable, lean widgets. Only UI-specific logic (animations, layout, simple routing). Use `ConsumerWidget` or `ConsumerStatefulWidget` for Riverpod integration.
-- **State access:** Use `ref.watch(provider)` in `build()` for reactive reads, `ref.read(provider.notifier)` in callbacks for one-shot actions.
-- **No business logic, no direct database access.** Delegate everything to providers.
-- **Local ephemeral state:** Only for truly local concerns (text field focus, animation controller, scroll position). Use `StatefulWidget` + `setState` for these only.
+Before recommending or changing architecture, read:
 
-### Logic Layer (Providers)
-- **Providers are the ViewModel layer.** Use `@riverpod` annotation + `riverpod_generator` for code generation.
-- **Notifier:** `Notifier<T>` or `AsyncNotifier<T>` for mutable state. Expose immutable state via the `state` property.
-- **Async state:** Use `AsyncNotifier<T>` returning `AsyncValue<T>`. Consumers render with `AsyncValue.when(data:, loading:, error:)`.
-- **Providers must NOT import `package:flutter/material.dart`.** Keep providers pure Dart — importable by tests without Flutter.
+- `AGENTS.md` if present
+- the assigned plan/workstream
+- `pubspec.yaml`
+- existing `lib/` structure
+- project-specific architecture rules in the runtime prompt
 
-### Data Layer
-- **DAOs/Services:** Raw database access (drift DAOs), API clients (http). Stateless utility classes.
-- **Repositories:** Consume DAOs/Services. Transform raw data to canonical drift models. Handle caching, offline, retry. Expose `Stream` or `Future`.
-- **Dependency injection:** Repositories are Riverpod providers (`Provider<BookRepository>`). DAOs are injected into repositories via constructors or provider refs.
+Do not force Riverpod, Drift, GoRouter, or any package unless the project config/spec already selected them or the user approves the decision.
 
-## Project Structure
+## Default architecture model
 
-Organize by feature for UI, by type for data:
+For medium/large Flutter apps, prefer layered separation:
 
+```text
+UI / Presentation
+  ↓ watches/calls
+Logic / State / ViewModel layer
+  ↓ calls
+Data / Repository / Service layer
+  ↓ owns
+Persistence, API clients, platform plugins
 ```
+
+### UI layer
+
+- Widgets render state and collect user input.
+- No direct database/network calls from widgets.
+- No business rules in build methods.
+- Local `setState` only for ephemeral UI state such as focus, animation, or temporary text editing.
+- Render loading, empty, error, and data states for async screens.
+- Use `Theme.of(context)` and configured design tokens.
+- Add semantic labels and stable keys where tests need them.
+
+### Logic/state layer
+
+Adapt to configured state management:
+
+- Riverpod: providers/notifiers own feature state; widgets use `ref.watch` and `ref.read`.
+- Bloc/Cubit: blocs own state transitions; widgets dispatch events and render states.
+- Provider/ChangeNotifier: keep notifiers focused and testable.
+- Other: follow project conventions.
+
+Rules:
+
+- Keep state classes immutable where practical.
+- Keep state layer free of `material.dart` unless project explicitly allows UI dependencies.
+- Expose behavior-oriented methods, not raw persistence details.
+- Inject dependencies for testability.
+
+### Data layer
+
+- Repositories expose use-case-oriented APIs.
+- Services/DAOs/API clients own raw persistence and network details.
+- Keep external services behind interfaces/adapters when they affect determinism or future swaps.
+- Handle offline, retry, caching, and error translation in data/repository layers, not widgets.
+
+## Suggested folder layouts
+
+Use the layout already present in the project unless it is clearly broken. Safe default:
+
+```text
 lib/
-├── core/                  # Theme, constants, extensions, l10n/
-│   ├── theme.dart
-│   └── utils.dart
-├── data/                  # Data layer (by type)
-│   ├── database/          # drift tables, DAOs, AppDatabase
-│   ├── api/               # REST API clients, DTOs
-│   ├── sync/              # Sync engine
-│   └── repositories/      # Repository implementations
-├── features/              # UI layer (by feature)
-│   ├── catalog/
-│   │   ├── catalog_screen.dart
-│   │   └── catalog_provider.dart
-│   ├── book_detail/
-│   │   ├── book_detail_screen.dart
-│   │   └── book_detail_provider.dart
-│   └── add_book/
-│       ├── add_book_screen.dart
-│       └── add_book_provider.dart
-├── app.dart               # MaterialApp.router, ProviderScope
-└── main.dart              # Entry point
+  main.dart
+  app.dart
+  core/ or app/          # theme, router, constants
+  data/                  # database, api, repositories, sync
+  domain/                # pure business rules/use cases if useful
+  features/              # feature UI + state
+  shared/                # reusable widgets/utilities
 ```
 
-## Riverpod Patterns
+If generated artifacts already exist in a root layout, preserve them initially to avoid import churn unless the user approves a migration.
 
-### Provider Definitions
+## Adding a feature: reliability-first workflow
 
-```dart
-// Database (singleton)
-@Riverpod(keepAlive: true)
-AppDatabase database(DatabaseRef ref) {
-  return AppDatabase();
-}
+1. Read the feature workstream and allowed files.
+2. Identify dependencies and existing patterns.
+3. Add/adjust data model or API DTO only if in scope.
+4. Implement repository/service methods.
+5. Implement state/controller/view-model.
+6. Implement UI with all states.
+7. Add stable test keys for planned integration/E2E journeys.
+8. Write unit/widget tests.
+9. Run generators if configured.
+10. Run targeted tests, static analysis, then broader tests.
 
-// Repository (depends on database)
-@Riverpod(keepAlive: true)
-BookRepository bookRepo(BookRepoRef ref) {
-  return BookRepository(db: ref.watch(databaseProvider));
-}
+## Code generation rules
 
-// Async state for a feature screen (auto-dispose when screen leaves)
-@riverpod
-class CatalogNotifier extends _$CatalogNotifier {
-  @override
-  Future<List<Book>> build() async {
-    final repo = ref.watch(bookRepoProvider);
-    return repo.getAllBooks();
-  }
+- Never manually edit generated files (`*.g.dart`, `*.freezed.dart`, generated mocks, etc.).
+- Run the configured generator, typically:
 
-  Future<void> search(String query) async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      final repo = ref.watch(bookRepoProvider);
-      return repo.search(query);
-    });
-  }
-}
+```bash
+dart run build_runner build --delete-conflicting-outputs
 ```
 
-### Consuming Providers in Widgets
+- If generator output changes unexpectedly outside the workstream, stop and report.
 
-```dart
-class CatalogScreen extends ConsumerWidget {
-  const CatalogScreen({super.key});
+## Error handling
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final catalogState = ref.watch(catalogNotifierProvider);
+- Convert low-level errors into user-actionable states/messages.
+- UI should gracefully handle permission denial, network failure, empty data, invalid input, and unavailable platform services.
+- Avoid crashes from null data, disposed controllers, or async race conditions.
 
-    return catalogState.when(
-      data: (books) => BookListView(books: books),
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => ErrorView(
-        message: error.toString(),
-        onRetry: () => ref.invalidate(catalogNotifierProvider),
-      ),
-    );
-  }
-}
-```
+## Testing obligations
 
-### Handling user actions
+- Pure business logic: unit tests.
+- Repositories/services: unit tests with fakes/in-memory persistence.
+- Screens/widgets: widget tests covering loading/empty/error/data and key interactions.
+- Multi-screen flows: integration/E2E tests using project-approved APIs.
 
-```dart
-// In a widget callback (NOT in build):
-ref.read(catalogNotifierProvider.notifier).search(query);
+## Architecture decision gate
 
-// Or for simple state:
-ref.read(someNotifierProvider.notifier).update(value);
-```
+Ask the user before:
 
-## Workflow: Implementing a New Feature
-
-- [ ] **Step 1: Define drift table / API DTO.** Create or update table definitions in `data/database/`. Run `build_runner`.
-- [ ] **Step 2: Implement DAO methods.** Add queries to the DAO for the new feature's data access patterns.
-- [ ] **Step 3: Implement Repository.** Create/update repository with methods that consume DAOs. Expose `Future` or `Stream`.
-- [ ] **Step 4: Create Riverpod providers.** Repository provider + feature-specific `AsyncNotifier` provider.
-- [ ] **Step 5: Implement the Screen widget.** `ConsumerWidget` that watches the provider and renders all states.
-- [ ] **Step 6: Write unit tests.** Test providers with `ProviderContainer(overrides: [...])` and `AppDatabase.memory()`.
-- [ ] **Step 7: Write widget tests.** Test screens with `ProviderScope(overrides: [...])` wrapping `MaterialApp`.
-- [ ] **Step 8: Run validator.** `dart analyze` + `flutter test` + `flutter test integration_test/`.
-
-## Examples
-
-### Data Layer: Repository with Provider
-
-```dart
-// data/database/tables.dart
-class Books extends Table {
-  TextColumn get id => text().clientDefault(() => uuid.v4())();
-  TextColumn get title => text()();
-  TextColumn get author => text().nullable()();
-}
-
-// data/database/dao.dart
-@DriftAccessor(tables: [Books])
-class BookDao extends DatabaseAccessor<AppDatabase> with _$BookDaoMixin {
-  BookDao(AppDatabase db) : super(db);
-
-  Future<List<Book>> getAllBooks() => select(books).get();
-  Future<Book?> getBook(String id) => (select(books)..where((t) => t.id.equals(id))).getSingleOrNull();
-}
-```
-
-### Logic Layer: Riverpod AsyncNotifier
-
-```dart
-// features/book_detail/book_detail_provider.dart
-import 'package:riverpod_annotation/riverpod_annotation.dart';
-part 'book_detail_provider.g.dart';
-
-@riverpod
-class BookDetailNotifier extends _$BookDetailNotifier {
-  @override
-  Future<Book> build(String bookId) async {
-    final repo = ref.watch(bookRepoProvider);
-    final book = await repo.getBook(bookId);
-    if (book == null) throw Exception('Book not found');
-    return book;
-  }
-
-  Future<void> updateTitle(String newTitle) async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      final repo = ref.watch(bookRepoProvider);
-      return repo.updateTitle(bookId, newTitle);
-    });
-  }
-}
-```
-
-### UI Layer: ConsumerWidget with All States
-
-```dart
-// features/book_detail/book_detail_screen.dart
-class BookDetailScreen extends ConsumerWidget {
-  const BookDetailScreen({super.key, required this.bookId});
-  final String bookId;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(bookDetailNotifierProvider(bookId));
-
-    return state.when(
-      data: (book) => Scaffold(
-        appBar: AppBar(title: Text(book.title)),
-        body: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(book.title, style: Theme.of(context).textTheme.headlineSmall),
-              if (book.author != null) Text('by ${book.author}'),
-            ],
-          ),
-        ),
-      ),
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
-      error: (error, stack) => Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('Failed to load book: $error'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => ref.invalidate(bookDetailNotifierProvider(bookId)),
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-```
+- introducing a new state-management package
+- changing folder architecture
+- changing persistence strategy
+- altering code-generation strategy
+- adding external services/auth/sync providers
+- performing large migrations
