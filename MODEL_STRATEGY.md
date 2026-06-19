@@ -1,75 +1,104 @@
-# Model Strategy — Mixed OpenAI Codex + OpenCode Go
+# Model Strategy — Four-Model Strategy with Visual Fidelity Tier
 
-This harness is project-agnostic, but model selection should match workstream risk and each model's supported thinking levels.
+This harness uses exactly four models. No other models should be used for default routing. Visual fidelity tasks are routed to the most capable model.
 
-## Thinking-level compatibility
+## Target Model Set
 
-Use Pi's `/models` or `pi --list-models` as the final source of truth. Current constraints for this setup:
+1. `openai-codex/gpt-5.5` — Scarce, high-leverage decisions AND visual fidelity. Planner, UI-critical implementation, visual validation, final review, critical escalation.
+2. `openai-codex/gpt-5.4` — Review and precision repair. Default reviewer, non-visual escalation.
+3. `opencode-go/deepseek-v4-pro` — Complex logic implementation. Data, state, sync, offline, auth.
+4. `opencode-go/deepseek-v4-flash` — Mechanical and fast. Simple fixes, golden tests, architecture checks.
 
-| Model family | Supported thinking levels to use |
-|---|---|
-| `openai-codex/gpt-5.5` | `low`, `medium`, `high` only — **do not use `xhigh`** |
-| `opencode-go/deepseek-v4-pro` | `high`, `xhigh` |
-| `opencode-go/deepseek-v4-flash` | `high`, `xhigh` |
-| `openai-codex/gpt-5.3-codex` | use `high` by default; use `xhigh` only if `/models` confirms it is supported locally |
-| `openai-codex/gpt-5.4-mini` | use `medium` or `high`; do not assume `xhigh` |
+## Operating Principle
 
-When in doubt, choose the highest supported level shown by `/models`, not the highest level Pi accepts globally.
+```text
+GPT-5.5 plans, validates visual fidelity, and handles critical milestones.
+GPT-5.4 reviews and repairs.
+DeepSeek V4 Pro builds complex logic.
+DeepSeek V4 Flash cleans up, runs golden tests, and scans patterns.
+```
 
-## Principles
+## Thinking-Level Compatibility
 
-1. **Mix subscriptions intentionally.** Use OpenCode Go for huge-context planning/scans and OpenAI Codex for precision implementation/review.
-2. **Do not hardcode product decisions into model prompts.** Product context comes from runtime config.
-3. **Use stronger models where mistakes are expensive:** planning, database/schema, routing, sync, auth, review, and failure recovery.
-4. **Use faster/cheaper models for low-risk mechanical work:** small widgets, constants, docs, and minor refactors.
-5. **Escalate on failure to the strongest available model with its highest supported thinking level.** For `gpt-5.5`, that means `high`, not `xhigh`.
+Use Pi `/models` or `pi --list-models` as the final source of truth. Current constraints:
 
-## Recommended agent frontmatter defaults
+| Model | Allowed thinking levels | Default | Notes |
+|---|---|---:|---|
+| `openai-codex/gpt-5.5` | `low`, `medium`, `high` | `high` | Never use `xhigh`. Used for UI-critical and visual tasks. |
+| `openai-codex/gpt-5.4` | `low`, `medium`, `high` if shown by `/models` | `high` | Reviewer and precision repair |
+| `opencode-go/deepseek-v4-pro` | `high`, `xhigh` | `xhigh` for complex, `high` for normal | Complex logic implementer |
+| `opencode-go/deepseek-v4-flash` | `high`, `xhigh` | `high` | Cheap mechanical: golden tests, architect scans, simple widgets |
+
+If a model rejects a thinking level, retry with the highest supported level shown by `/models`.
+
+## Agent Defaults
 
 | Agent | Default model | Thinking | Rationale |
 |---|---|---:|---|
-| orchestrator skill | no fixed model | high | The orchestrator is a procedure. It dispatches, asks, and gates. |
-| planner | `openai-codex/gpt-5.5` | high | Strongest planning/architecture judgment; GPT-5.5 does not support xhigh. |
-| feature-agent | `openai-codex/gpt-5.3-codex` | high | Strong default for agentic implementation work. |
-| reviewer | `openai-codex/gpt-5.5` | high | GPT-5.5 is strongest for complex coding/review, but does not support xhigh. |
+| orchestrator skill | no fixed model | high | Procedure; dispatches, asks, gates |
+| planner | `openai-codex/gpt-5.5` | high | Strongest planning/architecture judgment; no xhigh |
+| feature-agent (UI-critical) | `openai-codex/gpt-5.5` | high | UI requires visual reasoning capability |
+| feature-agent (logic) | `opencode-go/deepseek-v4-pro` | xhigh | High-volume complex logic implementation |
+| feature-agent (simple) | `opencode-go/deepseek-v4-flash` | high | Fast, cheap for mechanical work |
+| visual-validator | `openai-codex/gpt-5.5` | high | Vision capability needed for mockup comparison |
+| architect | `opencode-go/deepseek-v4-flash` | high | Fast mechanical pattern scans |
+| reviewer | `openai-codex/gpt-5.4` | high | Preserves GPT-5.5 quota; runs frequently |
 
-## Workstream tier mapping
+## Updated Workstream Tier Mapping
 
-| Workstream tier/type | First attempt | Thinking | Retry/escalation |
-|---|---|---:|---|
-| Broad planning / huge artifact scan | `opencode-go/deepseek-v4-pro` | xhigh | same or `openai-codex/gpt-5.5:high` for critique |
-| Plan critique / architecture sanity check | `openai-codex/gpt-5.5` | high | same |
-| Foundation scaffold | `openai-codex/gpt-5.5` | high | same |
-| Database/schema/sync/auth/routing | `openai-codex/gpt-5.5` | high | same |
-| Complex feature | `openai-codex/gpt-5.5` or `openai-codex/gpt-5.3-codex` | high | `openai-codex/gpt-5.5:high` |
-| Medium feature | `openai-codex/gpt-5.3-codex` | high | `openai-codex/gpt-5.5:high` |
-| Simple widget/constants/docs | `opencode-go/deepseek-v4-flash` or `openai-codex/gpt-5.4-mini` | high | `openai-codex/gpt-5.3-codex:high` |
-| Integration/E2E tests | `openai-codex/gpt-5.3-codex` | high | `openai-codex/gpt-5.5:high` |
-| Visual/mockup review | `openai-codex/gpt-5.5` | high | same |
-| Final review | `openai-codex/gpt-5.5` | high | optional second opinion with `opencode-go/deepseek-v4-pro:xhigh` for huge context |
-| Huge codebase consistency scan | `opencode-go/deepseek-v4-pro` | xhigh | same |
+| Workstream tier/type | First attempt | Thinking | Visual Validator | Fixer | Escalation |
+|---|---|---|---:|---:|---:|
+| Broad planning / plan critique | `openai-codex/gpt-5.5` | high | N/A | N/A | same |
+| Huge codebase consistency scan | `opencode-go/deepseek-v4-pro` | xhigh | N/A | N/A | `openai-codex/gpt-5.5:high` for critique |
+| UI-critical: screens/widgets | `openai-codex/gpt-5.5` | high | `openai-codex/gpt-5.5:high` (vision) | — | `openai-codex/gpt-5.5:high` re-review |
+| Foundation scaffold | `opencode-go/deepseek-v4-pro` | xhigh | — | `opencode-go/deepseek-v4-flash:high` | `openai-codex/gpt-5.4:high` |
+| Database/schema/migration | `opencode-go/deepseek-v4-pro` | xhigh | — | `openai-codex/gpt-5.4:high` | `openai-codex/gpt-5.5:high` only for data-loss risk |
+| Sync/offline/conflicts | `opencode-go/deepseek-v4-pro` | xhigh | — | `openai-codex/gpt-5.4:high` | `openai-codex/gpt-5.5:high` |
+| Auth/routing/state | `opencode-go/deepseek-v4-pro` | xhigh | — | `opencode-go/deepseek-v4-flash:high` | `openai-codex/gpt-5.4:high` |
+| Complex logic feature | `opencode-go/deepseek-v4-pro` | xhigh | — | `opencode-go/deepseek-v4-flash:high` | `openai-codex/gpt-5.4:high` |
+| Medium feature (logic) | `opencode-go/deepseek-v4-pro` | high | — | `opencode-go/deepseek-v4-flash:high` | `openai-codex/gpt-5.4:high` |
+| Simple widget/constants/docs | `opencode-go/deepseek-v4-flash` | high | — | `opencode-go/deepseek-v4-pro:high` | `openai-codex/gpt-5.4:high` |
+| Integration/E2E tests | `opencode-go/deepseek-v4-pro` | high | — | `opencode-go/deepseek-v4-flash:high` | `openai-codex/gpt-5.4:high` |
+| Golden test generation | `opencode-go/deepseek-v4-flash` | high | — | `opencode-go/deepseek-v4-pro:high` | `openai-codex/gpt-5.4:high` |
+| Architecture consistency scan | `opencode-go/deepseek-v4-flash` | high | — | — | — |
+| Normal review | `openai-codex/gpt-5.4` | high | N/A | N/A | `openai-codex/gpt-5.5:high` |
+| Final review | `openai-codex/gpt-5.5` | high | N/A | N/A | same |
 
-## Concrete usage examples
+## UI-Critical Workstream Identification
+
+A workstream is UI-critical if the planner marks it as such. Criteria:
+- Creates or significantly modifies a screen widget (`*_screen.dart`, `*_page.dart`)
+- Creates or modifies a shared UI component (`widgets/` directory)
+- Implements a visual layout from a Stitch mockup
+
+The orchestrator routes UI-critical workstreams to GPT-5.5 and triggers the visual validation phase after implementation.
+
+## Failure Escalation Ladder
 
 ```text
-Planner broad scan:       opencode-go/deepseek-v4-pro:xhigh
-Feature default:          openai-codex/gpt-5.3-codex:high
-Foundation feature:       openai-codex/gpt-5.5:high
-Reviewer:                 openai-codex/gpt-5.5:high
-Simple task:              opencode-go/deepseek-v4-flash:high
-Huge-context review pass: opencode-go/deepseek-v4-pro:xhigh
+Logic failure:
+  Attempt 1: DeepSeek V4 Pro xhigh/high
+  → Mechanical fix: DeepSeek V4 Flash high
+  → Repeated failure: GPT-5.4 high
+  → Critical: GPT-5.5 high
+
+Visual failure (discrepancies not resolved):
+  Attempts 1-3: GPT-5.5 (feature-agent) + GPT-5.5 (visual-validator) loop
+  → Max iterations reached: present to user
+
+Architecture check failure:
+  WARN: report to user, continue
+  FAIL: block pipeline, ask user
 ```
 
-## Why not always use GPT-5.5?
+Critical repeated failure means: data loss risk, unsafe database migration, broken sync/conflict resolution, auth/session security issue, routing loop or app boot blocker, duplicate detector correctness remains suspect, scan/OCR architecture is unstable, final release gate failure after GPT-5.4 repair.
 
-Use `gpt-5.5` for correctness-critical implementation and review. But OpenCode Go remains valuable because:
-
-- `deepseek-v4-pro` has very large context in Pi and supports `xhigh`.
-- `deepseek-v4-flash` is excellent for high-volume simple tasks.
-- Broad planning over specs, generated artifacts, and many files can exceed Codex's practical context budget. In those cases, the orchestrator can override the planner to `opencode-go/deepseek-v4-pro:xhigh` for a huge-context scan or second pass.
-
-## Operational notes
+## Operational Notes
 
 - Run `/models` in Pi before a major project to confirm exact model names and supported thinking.
 - If a selected model rejects a thinking level, retry with the highest supported level from the compatibility table above.
-- Prefer explicit model strings in orchestrator dispatch for high-risk workstreams.
+- Do not assign `xhigh` to GPT-5.5.
+- UI-critical work requires GPT-5.5 for visual reasoning capability. Do not route screens/widgets to DeepSeek.
+- The visual-validator MUST use GPT-5.5 — it needs vision to compare goldens against mockups.
+- Golden test generation and architecture scans are mechanical — use DeepSeek V4 Flash for cost efficiency.
+- Do not use GPT-5.3-Codex, GPT-5.4-Mini, Kimi K2.6, Qwen3.7 Plus, GLM-5.1, MiniMax, or MiMo unless the user explicitly overrides this four-model policy.

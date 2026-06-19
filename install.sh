@@ -10,7 +10,7 @@
 #   - Official Flutter skills via `npx skills add flutter/skills -a pi`
 #   - Our enhanced skill versions (override same-named official ones)
 #   - Our custom-only skills (orchestrator, brainstorming, writing-plans, grill-me)
-#   - Framework docs (FRAMEWORK.md, AGENTS.md template, MODEL_STRATEGY.md)
+#   - Framework docs (FRAMEWORK.md, AGENTS.md template, MODEL_STRATEGY.md, STITCH_PIPELINE.md, design-tokens-schema.md)
 #   - Settings for pi npm packages
 #
 # Generic — works with ANY project. Not tied to Flutter specifically.
@@ -66,6 +66,11 @@ OUR_CUSTOM_SKILLS=(
   brainstorming
   writing-plans
   grill-me
+  design-token-extractor
+  visual-validator
+  golden-test-generator
+  architecture-consistency-checker
+  stitch-html-parser
 )
 
 # ── Self-locate ──────────────────────────────────────────────────────────────
@@ -373,7 +378,7 @@ install_docs() {
 
   header "Installing framework documentation"
 
-  for doc in FRAMEWORK.md MODEL_STRATEGY.md; do
+  for doc in FRAMEWORK.md MODEL_STRATEGY.md STITCH_PIPELINE.md design-tokens-schema.md; do
     if [ -f "$target/$doc" ]; then
       info "$doc (exists — skipped)"
     elif [ -f "$source/$doc" ]; then
@@ -577,28 +582,59 @@ verify_ok=true
 
 # Agents
 agent_count=$(find "$TARGET/.pi/agents" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
-if [ "$agent_count" -ge 3 ]; then
+if [ "$agent_count" -ge 5 ]; then
   ok "Agents: $agent_count files in .pi/agents/"
 else
-  warn "Agents: only $agent_count files (expected ≥3)"
+  warn "Agents: only $agent_count files (expected ≥5 — planner, feature-agent, reviewer, visual-validator, architect)"
   verify_ok=false
 fi
 
 # Skills
 skill_count=$(find "$TARGET/.pi/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
-if [ "$skill_count" -ge 10 ]; then
+if [ "$skill_count" -ge 15 ]; then
   ok "Skills: $skill_count in .pi/skills/"
 else
-  warn "Skills: only $skill_count (expected ≥10)"
+  warn "Skills: only $skill_count (expected ≥15 — official + custom)"
   verify_ok=false
 fi
 
-# Custom skills
+# Custom skills (including new ones)
 for skill in "${OUR_CUSTOM_SKILLS[@]}"; do
   if [ -f "$TARGET/.pi/skills/$skill/SKILL.md" ]; then
     ok "Custom skill: $skill"
   else
     warn "Missing custom skill: $skill"
+    verify_ok=false
+  fi
+done
+
+# Official skills verification (key ones must exist)
+OFFICIAL_REQUIRED=(
+  flutter-build-responsive-layout
+  flutter-apply-architecture-best-practices
+  flutter-add-widget-test
+  dart-use-pattern-matching
+  dart-add-unit-test
+)
+missing_official=0
+for skill in "${OFFICIAL_REQUIRED[@]}"; do
+  if [ -f "$TARGET/.pi/skills/$skill/SKILL.md" ]; then
+    ok "Official skill: $skill"
+  else
+    warn "Missing official skill: $skill"
+    missing_official=$((missing_official + 1))
+  fi
+done
+if [ "$missing_official" -gt 0 ]; then
+  warn "$missing_official official skills missing. Re-run: npx skills add"
+fi
+
+# New agents verification
+for agent in visual-validator architect; do
+  if [ -f "$TARGET/.pi/agents/$agent.md" ]; then
+    ok "Agent: $agent"
+  else
+    warn "Missing agent: $agent"
     verify_ok=false
   fi
 done
@@ -618,7 +654,7 @@ for skill in "${OUR_ENHANCED_SKILLS[@]}"; do
 done
 
 # Docs
-for doc in FRAMEWORK.md AGENTS.md MODEL_STRATEGY.md; do
+for doc in FRAMEWORK.md AGENTS.md MODEL_STRATEGY.md STITCH_PIPELINE.md design-tokens-schema.md; do
   if [ -f "$TARGET/$doc" ]; then
     ok "Doc: $doc"
   else

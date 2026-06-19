@@ -3,7 +3,7 @@ name: flutter-apply-architecture-best-practices
 description: Apply project-agnostic Flutter architecture best practices. Defaults to layered UI/logic/data separation and can adapt to the runtime-configured state management, routing, persistence, and code generation stack.
 metadata:
   model: models/gemini-3.1-pro-preview
-  last_modified: 2026-06-04
+  last_modified: 2026-06-19
 ---
 
 # Flutter Architecture Best Practices
@@ -123,6 +123,190 @@ dart run build_runner build --delete-conflicting-outputs
 - Screens/widgets: widget tests covering loading/empty/error/data and key interactions.
 - Multi-screen flows: integration/E2E tests using project-approved APIs.
 
+## Design token compliance
+
+When the project has a `design_tokens.json` file (extracted from Stitch HTML mockups), ALL UI code must reference theme constants, never hardcoded values.
+
+### Colors
+
+```dart
+// CORRECT — referencing design tokens
+Container(
+  color: Theme.of(context).colorScheme.primary,
+)
+
+// WRONG — hardcoded value
+Container(
+  color: Color(0xFF0D7377),
+)
+```
+
+Read `design_tokens.json` to understand the token → ColorScheme mapping. Common mappings:
+- `colors.light.accent` → `colorScheme.primary`
+- `colors.light.surface` → `colorScheme.surface`
+- `colors.light.background` → `colorScheme.background`
+- `colors.light.textPrimary` → `colorScheme.onBackground`
+- `colors.light.textSecondary` → `colorScheme.onSurfaceVariant`
+- `colors.light.error` → `colorScheme.error`
+
+### Typography
+
+```dart
+// CORRECT — referencing design tokens
+Text('Title', style: Theme.of(context).textTheme.headlineLarge)
+
+// WRONG — hardcoded style
+Text('Title', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600))
+```
+
+Typography token → TextTheme mapping:
+- `typography.h1` → `textTheme.headlineLarge`
+- `typography.h2` → `textTheme.headlineMedium`
+- `typography.body` → `textTheme.bodyLarge`
+- `typography.label` → `textTheme.labelLarge`
+- `typography.caption` → `textTheme.bodySmall`
+
+### Spacing
+
+```dart
+// CORRECT — referencing design token constants
+Padding(
+  padding: const EdgeInsets.all(AppSpacing.lg),
+)
+
+// WRONG — magic number
+Padding(
+  padding: const EdgeInsets.all(16),
+)
+```
+
+Spacing constants should be defined in `lib/core/app_spacing.dart`:
+
+```dart
+abstract class AppSpacing {
+  static const double xs = 4;
+  static const double sm = 8;
+  static const double md = 12;
+  static const double lg = 16;
+  static const double xl = 24;
+  static const double xxl = 32;
+
+  // Screen edge padding
+  static const double screenEdge = 16;
+  
+  // Card gap
+  static const double cardGridGap = 12;
+}
+```
+
+### Exception: theme definition files
+
+Hardcoded values are allowed ONLY in:
+- `lib/core/app_theme.dart` (theme definition)
+- `lib/core/app_spacing.dart` (spacing constants)
+- `lib/core/app_tokens.dart` (design token mapping)
+
+Feature files MUST reference these definitions, never raw values.
+
+## Golden tests for visual regression
+
+For every UI screen or significant widget, generate a golden (visual snapshot) test.
+
+### Golden test file location
+
+```
+test_goldens/
+├── catalog_grid_screen_golden_test.dart
+├── book_detail_screen_golden_test.dart
+└── welcome_screen_golden_test.dart
+```
+
+### Golden test template
+
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
+import 'package:[app_package]/core/app_theme.dart';
+import 'package:[app_package]/features/[feature]/[screen].dart';
+
+void main() {
+  group('[ScreenName] golden tests', () {
+    testWidgets('renders correctly in light mode', (tester) async) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const [ScreenName](...requiredParams),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType([ScreenName]),
+        matchesGoldenFile('goldens/[screen_name]_light.png'),
+      );
+    });
+
+    testWidgets('renders correctly in dark mode', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark,
+          home: const [ScreenName](...requiredParams),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType([ScreenName]),
+        matchesGoldenFile('goldens/[screen_name]_dark.png'),
+      );
+    });
+  });
+}
+```
+
+### Golden test policy
+
+- **Establish baseline:** Run `flutter test --update-goldens test_goldens/` once during initial implementation
+- **During visual iteration:** Use `--update-goldens` freely (goldens are transient during validation)
+- **After visual parity:** Re-run without `--update-goldens` to confirm baseline sticks
+- **CI:** Runs `flutter test test_goldens/` WITHOUT `--update-goldens` to detect regressions
+- **Source mockups:** NEVER overwrite Stitch `screen.png` or `code.html` — they are immutable
+- **Golden PNGs:** Stored in `test/goldens/` — these ARE version-controlled as visual baselines
+
+### Anti-patterns to avoid
+
+- Do NOT use network images in golden tests (use test doubles)
+- Do NOT use random content (use fixed test data)
+- Do NOT use `DateTime.now()` (freeze time for deterministic rendering)
+- Do NOT skip golden tests for UI-critical screens
+
+## Architecture decision log
+
+After completing each workstream, append architectural decisions to `docs/ARCHITECTURE_LOG.md`.
+
+### Format
+
+```markdown
+## [WORKSTREAM_ID]: [Name] — [Date]
+
+**Files created:** ...
+**Files modified:** ...
+**Patterns used:**
+- State: [pattern used]
+- Routing: [router pattern]
+- Widget composition: [how widgets are composed]
+**Design token usage:**
+- Colors: [which token → which element]
+- Spacing: [which scale → which context]
+- Typography: [which style → which text]
+**Decisions:**
+- [Architecture/naming/pattern decisions]
+```
+
+### Purpose
+
+- Maintains consistency across workstreams (fresh agent contexts need decision continuity)
+- Enables reviewer to verify decisions match implementation
+- Prevents architecture drift (W03 follows pattern from W01 that W02 ignored)
+
 ## Architecture decision gate
 
 Ask the user before:
@@ -133,3 +317,6 @@ Ask the user before:
 - altering code-generation strategy
 - adding external services/auth/sync providers
 - performing large migrations
+- using hardcoded design values when `design_tokens.json` exists
+- skipping golden tests for UI-critical screens
+- modifying the golden test or architecture log file conventions

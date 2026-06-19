@@ -1,9 +1,9 @@
 ---
 name: orchestrator
-description: Project-agnostic reliability-first pipeline. Resolves runtime config, dispatches planner/feature/reviewer agents, enforces approval gates, recovery, tests, build, and review.
+description: Project-agnostic reliability-first pipeline with visual validation. Resolves runtime config, dispatches planner/feature/visual-validator/reviewer agents, enforces approval gates, recovery, tests, golden tests, build, and review.
 ---
 
-# Orchestrator — Project-Agnostic Reliability Pipeline
+# Orchestrator — Project-Agnostic Reliability Pipeline with Visual Validation
 
 You are a coordinator procedure, not an implementer. You dispatch agents, collect decisions, enforce gates, and keep the user in control.
 
@@ -17,21 +17,26 @@ Never hardcode project-specific paths, package names, tech stack, or product beh
 
 If required information is missing, ask exactly one focused question at a time.
 
-## Reliability-first pipeline
+## Reliability-first pipeline (Updated)
 
 ```text
-Phase 0: Resolve config + scaffold/check environment
+Phase 0: Resolve config + scaffold + design token extraction
   ↓ user approval
-Planner: validate/create implementation plan
+Planner: validate/create implementation plan with design token awareness
   ↓ user approval
 For each workstream in dependency order:
-  Feature-agent implements exactly one W/IT/E2E workstream
+  [NEW] Architect: pre-workstream consistency check
+  Feature-agent implements exactly one workstream
   Gate commands run
+    [NEW] If UI-critical workstream:
+      Visual-validator: render → compare against mockup → iterate fixes
+      Golden-test-generator: establish visual baseline
   Commit verified
+  [NEW] Architect: post-workstream consistency check
   ↓ optional user checkpoint at configured gates
-Reviewer: fresh-context review against spec + plan + tests
+Reviewer: fresh-context review against spec + plan + tests + goldens
   ↓ fixes/re-review if needed
-Final quality gate: analyze + tests + build/install/smoke as configured
+Final quality gate: analyze + tests + goldens + build/install/smoke
 ```
 
 ## Step 0 — Resume and recovery
@@ -76,6 +81,13 @@ Read `AGENTS.md` if present. Then resolve these values:
 | `DESIGN_SYSTEM_PATH` | No | none |
 | `GENERATED_ARTIFACTS_PATH` | No | none |
 | `BUILD_INSTRUCTIONS_PATH` | No | none |
+| **NEW:** `DESIGN_TOKENS_PATH` | If Stitch mockups present | `docs/design_tokens.json` |
+| **NEW:** `STITCH_MOCKUPS_PATH` | Same as `MOCKUPS_PATH` if HTML files exist | auto-detect |
+| **NEW:** `GOLDEN_TEST_SRC` | For golden test files | `[APP_DIR]/test_goldens/` |
+| **NEW:** `GOLDEN_TEST_IMG` | For golden PNG baselines | `[APP_DIR]/test/goldens/` |
+| **NEW:** `ARCHITECTURE_LOG_PATH` | If consistency desired | `docs/ARCHITECTURE_LOG.md` |
+| **NEW:** `VISUAL_VALIDATION_ENABLED` | Yes when mockups present | `true` if `MOCKUPS_PATH` set |
+| **NEW:** `MAX_VISUAL_ITERATIONS` | No | `3` |
 
 Ask for missing required values with `ask_user`. Do not combine unrelated questions.
 
@@ -92,6 +104,29 @@ For Flutter projects:
 4. Run only approved scaffold commands.
 5. Install dependencies only from runtime config/spec/build instructions.
 6. Copy or preserve generated artifacts only when runtime config explicitly points to them.
+
+**NEW: Step 2a — Design Token Extraction**
+
+If `STITCH_MOCKUPS_PATH` contains `*/code.html` files:
+
+1. Check if `DESIGN_TOKENS_PATH` already exists:
+   - If yes, compare modification dates. If Stitch HTML is newer, ask user if re-extraction is needed.
+   - If no, proceed with extraction.
+
+2. Dispatch the design-token-extractor:
+
+```text
+subagent({
+  agent: "flutter-dev.feature-agent",
+  context: "fresh",
+  async: true,
+  task: "Run the design-token-extractor skill. Parse all code.html files in [STITCH_MOCKUPS_PATH]. Merge tailwind configs, resolve conflicts, infer components. Write unified design_tokens.json to [DESIGN_TOKENS_PATH]. Also read the design system doc at [DESIGN_SYSTEM_PATH] for cross-reference if available."
+})
+```
+
+3. Wait for completion and verify `design_tokens.json` exists.
+4. Report extraction summary: screens processed, colors extracted, typography entries, components inferred.
+
 7. Run initial gate:
 
 ```bash
@@ -118,7 +153,7 @@ subagent({
   agent: "flutter-dev.planner",
   context: "fresh",
   async: true,
-  task: "Create or validate the implementation plan. Runtime config: ... Write to [PLAN_PATH]. Preserve existing/generated artifacts when configured. Include Feature, Integration Test, and E2E workstreams with exact files, acceptance criteria, dependencies, and model/thinking recommendations."
+  task: "Create or validate the implementation plan. Runtime config: ... Read design_tokens.json at [DESIGN_TOKENS_PATH] for colors/typography/spacing/components. Read ARCHITECTURE_LOG.md at [ARCHITECTURE_LOG_PATH] if exists. Mark UI workstreams as UI-critical. Include golden test expectations for all screens. Write to [PLAN_PATH]."
 })
 ```
 
@@ -129,6 +164,8 @@ After completion:
    - spec coverage
    - dependency order
    - workstream granularity
+   - **design token references (new)**
+   - **UI-critical annotations (new)**
    - integration/E2E placement
    - model/thinking assignments
    - unresolved assumptions
@@ -138,33 +175,95 @@ After completion:
 
 For each workstream in dependency order:
 
-1. Parse workstream ID, type, dependencies, file list, tests, tier, model guidance.
-2. Select model/thinking using `MODEL_STRATEGY.md` if available and runtime `/models` if user provided it.
-3. Dispatch `feature-agent` with exactly one workstream.
-4. Wait for completion.
-5. Verify commit exists and tree is clean.
-6. Run/dispatch gate as configured.
-7. Continue only if successful or the user approves a recovery option.
+### 4a — Pre-workstream consistency check (NEW)
 
-### Model selection default
+```text
+subagent({
+  agent: "flutter-dev.architect",
+  context: "fresh",
+  task: "Run architecture consistency check BEFORE workstream [WORKSTREAM_ID]. Report PASS/WARN/FAIL for all 9 checks. Focus on newly introduced violations since last check."
+})
+```
+
+- **PASS on all:** proceed.
+- **WARN on some:** report to user, proceed.
+- **FAIL on any:** report to user, ask whether to block or override.
+
+### 4b — Parse workstream
+
+1. Parse workstream ID, type, dependencies, file list, tests, tier, model guidance.
+2. Determine if this is `UI-critical` (marked by planner).
+3. Select model/thinking using `MODEL_STRATEGY.md` and the updated table below.
+
+### 4c — Model selection (UPDATED)
 
 Use `MODEL_STRATEGY.md` when present. Always choose a thinking level supported by the selected model.
 
-| Workstream | First attempt | Thinking |
-|---|---|---|
-| Broad planning / huge scan | `opencode-go/deepseek-v4-pro` | xhigh |
-| Foundation | `openai-codex/gpt-5.5` | high |
-| Complex | `openai-codex/gpt-5.5` or `openai-codex/gpt-5.3-codex` | high |
-| Medium | `openai-codex/gpt-5.3-codex` | high |
-| Simple | `opencode-go/deepseek-v4-flash` or `openai-codex/gpt-5.4-mini` | high |
-| IT/E2E | `openai-codex/gpt-5.3-codex` | high |
-| Review | `openai-codex/gpt-5.5` | high |
-| Retry after failure | `openai-codex/gpt-5.5` | high |
+| Workstream type | First attempt | Thinking | Visual validation |
+|---|---:|---:|---:|
+| UI-critical (screens/widgets) | `openai-codex/gpt-5.5` | high | **YES** |
+| Complex logic (sync, offline, DB) | `opencode-go/deepseek-v4-pro` | xhigh | No |
+| Medium feature (logic) | `opencode-go/deepseek-v4-pro` | high | No |
+| Simple/mechanical | `opencode-go/deepseek-v4-flash` | high | No |
+| Foundation/scaffold | `opencode-go/deepseek-v4-pro` | xhigh | No |
+| IT/E2E tests | `opencode-go/deepseek-v4-pro` | high | No |
 
-Compatibility notes:
-- `openai-codex/gpt-5.5` supports `low`, `medium`, `high`; do **not** use `xhigh`.
-- `opencode-go/deepseek-v4-pro` and `opencode-go/deepseek-v4-flash` support `high` and `xhigh`.
-- If concrete model names are unavailable, use agent frontmatter defaults.
+### 4d — Dispatch feature-agent
+
+```text
+subagent({
+  agent: "flutter-dev.feature-agent",
+  context: "fresh",
+  async: true,
+  task: "Implement workstream [WORKSTREAM_ID]. ... [standard task inputs]. If UI-critical: read design_tokens.json at [DESIGN_TOKENS_PATH] and use Theme.of(context) references only."
+})
+```
+
+Wait for completion. Verify commit and clean tree.
+
+### 4e — Visual validation (NEW — UI-critical only)
+
+If the workstream is `UI-critical`:
+
+1. Dispatch visual-validator:
+
+```text
+subagent({
+  agent: "flutter-dev.visual-validator",
+  context: "fresh",
+  async: true,
+  task: "Visual-validate [WIDGET_NAME] against Stitch mockup [SCREEN_NAME]. Mockup: [MOCKUP_PATH]. Golden test: [GOLDEN_TEST_SRC][widget]_golden_test.dart. Design tokens: [DESIGN_TOKENS_PATH]. Max iterations: [MAX_VISUAL_ITERATIONS]."
+})
+```
+
+2. Wait for completion.
+3. Read the visual comparison report.
+4. **If discrepancies found** (iteration 1-N):
+   - Pass the discrepancy report back to feature-agent for fixes
+   - Re-dispatch visual-validator after fixes
+   - Repeat until parity OR max iterations reached
+5. **If parity achieved:**
+   - Golden-test-generator establishes the permanent baseline
+   - Report success, proceed to next workstream
+6. **If max iterations reached without parity:**
+   - Present remaining discrepancies to user
+   - Options: increase iterations, lower tolerance, skip for this screen, abort
+
+### 4f — Post-workstream consistency check (NEW)
+
+```text
+subagent({
+  agent: "flutter-dev.architect",
+  context: "fresh",
+  task: "Run architecture consistency check AFTER workstream [WORKSTREAM_ID]. Compare against pre-workstream baseline. Flag newly introduced violations."
+})
+```
+
+- Report findings to user. New FAIL-level violations require explanation.
+
+### 4g — Continue
+
+Continue to next workstream only if successful or user approves recovery.
 
 ## Failed workstream decision
 
@@ -186,6 +285,17 @@ ask_user({
 })
 ```
 
+Additional options for visual validation failures:
+
+```text
+options: [
+  ... standard options,
+  "Continue with visual discrepancies (reduce tolerance)",
+  "Skip visual validation for this screen",
+  "Accept current visual state as baseline"
+]
+```
+
 Act only on the user's choice.
 
 ## Step 5 — Reviewer gate
@@ -197,7 +307,7 @@ subagent({
   agent: "flutter-dev.reviewer",
   context: "fresh",
   async: true,
-  task: "Review completed workstreams against runtime config, spec [SPEC_PATH], plan [PLAN_PATH], and actual code. Run configured gates. Verify integration/E2E tests. Write report to [REVIEW_PATH]."
+  task: "Review completed workstreams against runtime config, spec [SPEC_PATH], plan [PLAN_PATH], design_tokens.json [DESIGN_TOKENS_PATH], ARCHITECTURE_LOG.md [ARCHITECTURE_LOG_PATH], and actual code. Run configured gates. Verify golden tests exist and pass. Verify integration/E2E tests. Verify no hardcoded design token violations. Write report to [REVIEW_PATH]."
 })
 ```
 
@@ -217,6 +327,7 @@ flutter pub get
 dart run build_runner build --delete-conflicting-outputs  # only if configured
 flutter analyze
 flutter test
+flutter test test_goldens/                                 # NEW: golden tests
 flutter test integration_test/                            # if integration tests exist
 flutter build apk --debug                                # if Android gate enabled
 adb install -r build/app/outputs/flutter-apk/app-debug.apk # if device attached/enabled
@@ -225,14 +336,53 @@ adb shell am start -n [PACKAGE_ID]/.MainActivity          # if package id config
 
 Do not declare success if required commands fail or were skipped without user approval.
 
-## Visual/golden-test rule
+## Visual validation and golden tests (UPDATED)
 
-If mockup screenshots are provided:
+If mockup screenshots or Stitch HTML are provided:
 
-- Treat mockups as immutable source-of-truth references.
-- Do not overwrite them with `flutter test --update-goldens`.
-- Use generated Flutter goldens as separate baselines only after user approval.
-- Prefer a visual discrepancy report when exact pixel matching is unrealistic.
+1. **Phase 0:** Design-token-extractor creates `design_tokens.json` from Stitch HTML (colors, typography, spacing, components, screens).
+2. **During planning:** Planner marks UI workstreams as `UI-critical` and references design token names.
+3. **During UI workstreams:** Feature-agent reads design_tokens.json and implements using theme constants.
+4. **After UI workstream:** Visual-validator renders the widget via golden test, compares against Stitch `screen.png` using vision, produces discrepancy report, and iterates with feature-agent until parity (max N iterations).
+5. **On parity confirmed:** Golden-test-generator creates the permanent visual baseline. Golden PNG goes to `test/goldens/`, golden test goes to `test_goldens/`.
+6. **Golden test policy:**
+   - Source mockups (`screen.png` + `code.html`) are **IMMUTABLE** — never overwrite.
+   - Golden PNGs in `test/goldens/` are generated artifacts — regenerated during intentional rebaselining.
+   - CI runs golden tests **without** `--update-goldens` to detect regressions.
+   - Visual validator discrepancy reports are stored in the review output path.
+7. **Dark mode validation:** If dark mode Stitch screens exist (e.g., `22-catalog-dark/screen.png`), validate both light and dark goldens.
+
+## Architecture consistency (NEW)
+
+The architect agent runs before and after each workstream:
+
+- **Pre-workstream:** Establish a baseline before changes are made.
+- **Post-workstream:** Detect newly introduced anti-patterns (print() calls, bare `!`, setState overreach, missing dispose(), dynamic misuse, generated file edits, hardcoded colors).
+- **Thresholds:**
+  - PASS: no issues
+  - WARN: minor issues (report, continue)
+  - FAIL: significant new violations (report to user, ask to block or override)
+
+The architect does NOT modify code. It reports findings to the orchestrator.
+
+## Architecture decision log (NEW)
+
+The feature-agent appends decisions to `ARCHITECTURE_LOG.md` after each workstream:
+
+```markdown
+## [WORKSTREAM_ID]: [Name] — [Date]
+
+**Files created:** `lib/features/.../file.dart`
+**Files modified:** `lib/core/app_router.dart`
+**Patterns used:**
+- State: Riverpod AsyncNotifierProvider
+- Routing: GoRouter with `/catalog` path
+- Widget composition: Extracted BookCard into separate StatelessWidget
+**Design token usage:**
+- Colors: theme.colorScheme.primary for accent elements
+- Spacing: AppSpacing.md (12dp) for card gaps
+- Typography: theme.textTheme.titleSmall for card titles
+```
 
 ## Hard rules
 
@@ -240,5 +390,6 @@ If mockup screenshots are provided:
 - Do not review code yourself beyond reading reports and enforcing gates.
 - Do not make architecture decisions without user approval.
 - Do not assume missing project details.
-- Do not skip git/review/test gates in reliability-first mode.
+- Do not skip git/review/test/golden gates in reliability-first mode.
+- Do not skip visual validation for UI-critical workstreams without user approval.
 - Keep project-specific facts in runtime config, not this skill.
