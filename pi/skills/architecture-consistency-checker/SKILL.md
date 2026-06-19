@@ -17,6 +17,22 @@ A fast, mechanical scan that checks the codebase for common Flutter anti-pattern
 - On demand when the user suspects pattern drift
 - During review phases (supplements the reviewer's deep check)
 
+## Deterministic script first
+
+Prefer the shipped read-only script over ad-hoc grep sequences:
+
+```bash
+[HARNESS_TOOLS]/arch_check.sh [APP_DIR] [before_workstream|after_workstream] [WORKSTREAM_ID] [DESIGN_TOKENS_PATH] [ARCHITECTURE_LOG_PATH]
+```
+
+The script emits JSON on stdout and a concise markdown-style report on stderr. Exit code:
+- `0`: no FAIL-level issues
+- `3`: at least one FAIL-level issue
+- `2`: usage/environment error
+
+Only run the individual commands below manually when the script is unavailable or when you need
+to explain a specific finding.
+
 ## Checks
 
 Run each check. Report results as PASS / WARN / FAIL.

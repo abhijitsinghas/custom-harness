@@ -44,6 +44,8 @@ All paths are relative to the project root unless absolute.
 | Golden test source | `[app_dir]/test_goldens/` | For golden test dart files |
 | Golden test images | `[app_dir]/test/goldens/` | Golden PNG baselines |
 | Architecture decision log | `docs/ARCHITECTURE_LOG.md` | For consistency across workstreams |
+| Orchestrator state file | `docs/state.json` | Resume source of truth |
+| Harness tools directory | `.pi/tools/` | Deterministic scripts (`extract_design_tokens.js`, `arch_check.sh`, `golden_check.sh`) |
 | Build instructions | `[optional path/to/build-instructions.md]` | No |
 
 ---
@@ -59,6 +61,9 @@ All paths are relative to the project root unless absolute.
 | Visual validation | `Use visual-validator agent to compare rendered goldens vs Stitch mockups` |
 | Golden test policy | `Generate golden tests for all UI screens; store in test/goldens/; never overwrite source mockups` |
 | Git policy | `Commit after each successful workstream` |
+| Autonomy mode | `Disabled` by default; set `Enabled` for bounded auto-retry before asking user |
+| Max automatic retries | `2` before escalation / user decision |
+| Resume policy | `docs/state.json` + git commits + native `subagent resume` run IDs |
 
 ---
 
@@ -69,7 +74,7 @@ All paths are relative to the project root unless absolute.
 | Visual validation | `Enabled` (default when mockups are present) |
 | Max visual iterations | `3` (max 5, configurable per screen) |
 | Golden test framework | `flutter_test` (default), or `alchemist` |
-| Visual comparison method | `vision` (GPT-5.5 compares rendered goldens vs mockups) |
+| Visual comparison method | `vision` (`ui-vision-tier` model compares rendered goldens vs mockups) |
 | Design token source | `design_tokens.json` (extracted from Stitch HTML) |
 
 ---
@@ -137,20 +142,33 @@ adb shell am start -n [package_id]/.MainActivity
 
 ## Model Profile
 
-This harness uses a four-model strategy. See `MODEL_STRATEGY.md` for full details.
+This harness is model-agnostic. See `MODEL_STRATEGY.md` for full details.
 
-| Role | Default model | Thinking |
-|---|---:|---|
-| Orchestrator | No fixed model | high |
-| Planner | `openai-codex/gpt-5.5` | high |
-| Feature agent (UI-critical) | `openai-codex/gpt-5.5` | high |
-| Feature agent (logic) | `opencode-go/deepseek-v4-pro` | xhigh |
-| Feature agent (simple) | `opencode-go/deepseek-v4-flash` | high |
-| Visual validator | `openai-codex/gpt-5.5` | high |
-| Architect | `opencode-go/deepseek-v4-flash` | high |
-| Reviewer | `openai-codex/gpt-5.4` | high |
-| Final review / critical escalation | `openai-codex/gpt-5.5` | high |
+**Required setup for a target project:** run `pi --list-models` and configure concrete model IDs in `.pi/settings.json` using native `pi-subagents` overrides. Example (replace IDs with models available on this machine):
 
-**Removed models:** GPT-5.3-Codex, GPT-5.4-Mini, Kimi K2.6, Qwen3.7 Plus, GLM-5.1.
+```json
+{
+  "subagents": {
+    "agentOverrides": {
+      "planner":          { "model": "[planner-tier-model]", "thinking": "high" },
+      "feature-agent":    { "model": "[logic-tier-model]", "thinking": "xhigh", "fallbackModels": ["[mechanical-tier-model]"] },
+      "visual-validator": { "model": "[ui-vision-tier-model]", "thinking": "high" },
+      "architect":        { "model": "[mechanical-tier-model]", "thinking": "high" },
+      "reviewer":         { "model": "[review-tier-model]", "thinking": "high" }
+    }
+  }
+}
+```
 
-Concrete model names depend on the local Pi/provider configuration. See `MODEL_STRATEGY.md` for thinking-level constraints.
+| Role | Capability tier | Thinking |
+|---|---|---|
+| Planner | `planner-tier` | high |
+| Feature agent (UI-critical) | `ui-vision-tier` | high |
+| Feature agent (logic) | `logic-tier` | xhigh/high |
+| Feature agent (simple) | `mechanical-tier` | high |
+| Visual validator | `ui-vision-tier` | high |
+| Architect | `mechanical-tier` | high |
+| Reviewer | `review-tier` | high |
+| Final review / critical escalation | `escalation-tier` | high |
+
+Concrete model names depend on the local Pi/provider configuration. The orchestrator resolves and passes models per dispatch; agent files do not hardcode model IDs.

@@ -11,6 +11,7 @@
 #   - Our enhanced skill versions (override same-named official ones)
 #   - Our custom-only skills (orchestrator, brainstorming, writing-plans, grill-me)
 #   - Framework docs (FRAMEWORK.md, AGENTS.md template, MODEL_STRATEGY.md, STITCH_PIPELINE.md, design-tokens-schema.md)
+#   - Deterministic helper tools (.pi/tools/extract_design_tokens.js, arch_check.sh, golden_check.sh)
 #   - Settings for pi npm packages
 #
 # Generic — works with ANY project. Not tied to Flutter specifically.
@@ -433,6 +434,29 @@ AGENTS_EOF
   fi
 }
 
+# ── Install deterministic helper tools ───────────────────────────────────────
+install_tools() {
+  local target="$1"
+  local source="$2"
+
+  header "Installing deterministic helper tools"
+
+  mkdir -p "$target/.pi/tools"
+  local copied=0
+  if [ -d "$source/tools" ]; then
+    for tool in "$source/tools"/*; do
+      [ -f "$tool" ] || continue
+      cp "$tool" "$target/.pi/tools/$(basename "$tool")"
+      chmod +x "$target/.pi/tools/$(basename "$tool")" 2>/dev/null || true
+      info "$(basename "$tool")"
+      copied=$((copied + 1))
+    done
+  else
+    warn "No tools/ directory found in source — deterministic scripts unavailable"
+  fi
+  echo "  → $copied tools installed"
+}
+
 # ── Configure settings.json ──────────────────────────────────────────────────
 install_settings() {
   local target="$1"
@@ -516,6 +540,7 @@ print_summary() {
   echo "  ${BOLD}Agents:${NC}         $agent_count  (.pi/agents/)"
   echo "  ${BOLD}Skills:${NC}         $skill_count  (.pi/skills/)"
   echo "  ${BOLD}Docs:${NC}           FRAMEWORK.md, AGENTS.md, MODEL_STRATEGY.md"
+  echo "  ${BOLD}Tools:${NC}          .pi/tools/ (extract_design_tokens.js, arch_check.sh, golden_check.sh)"
   echo "  ${BOLD}Settings:${NC}       .pi/settings.json"
   echo ""
 
@@ -568,10 +593,13 @@ install_custom_skills "$TARGET" "$SCRIPT_DIR"
 # Step 5: Framework documentation
 install_docs "$TARGET" "$SCRIPT_DIR"
 
-# Step 6: Settings
+# Step 6: Deterministic helper tools
+install_tools "$TARGET" "$SCRIPT_DIR"
+
+# Step 7: Settings
 install_settings "$TARGET" "$SCRIPT_DIR"
 
-# Step 7: pi extension packages
+# Step 8: pi extension packages
 install_pi_packages "$TARGET"
 
 # ── Verification ─────────────────────────────────────────────────────────────
@@ -659,6 +687,16 @@ for doc in FRAMEWORK.md AGENTS.md MODEL_STRATEGY.md STITCH_PIPELINE.md design-to
     ok "Doc: $doc"
   else
     warn "Missing doc: $doc"
+    verify_ok=false
+  fi
+done
+
+# Tools
+for tool in extract_design_tokens.js arch_check.sh golden_check.sh; do
+  if [ -f "$TARGET/.pi/tools/$tool" ]; then
+    ok "Tool: $tool"
+  else
+    warn "Missing tool: $tool"
     verify_ok=false
   fi
 done

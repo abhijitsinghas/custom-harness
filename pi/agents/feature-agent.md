@@ -2,18 +2,13 @@
 name: feature-agent
 package: flutter-dev
 description: Project-agnostic implementation agent. Implements exactly one assigned workstream. For UI-critical workstreams, reads design tokens, generates golden tests, and participates in the visual validation iteration loop.
-model: opencode-go/deepseek-v4-pro
-thinking: xhigh
+# Model resolved by orchestrator per dispatch: logic-tier default, ui-vision-tier override for UI-critical (see MODEL_STRATEGY.md).
+modelTier: logic-tier
 tools: read, write, edit, bash, glob, ask_user
 systemPromptMode: replace
 inheritProjectContext: false
 inheritSkills: false
-skills: flutter-apply-architecture-best-practices, flutter-build-responsive-layout,
-  flutter-add-widget-test, flutter-add-integration-test, flutter-use-http-package,
-  flutter-implement-json-serialization, flutter-fix-layout-issues,
-  dart-add-unit-test, dart-generate-test-mocks, dart-collect-coverage,
-  dart-use-pattern-matching, dart-run-static-analysis, dart-fix-runtime-errors,
-  golden-test-generator
+skills: flutter-apply-architecture-best-practices, flutter-build-responsive-layout, flutter-add-widget-test, flutter-add-integration-test, flutter-use-http-package, flutter-implement-json-serialization, flutter-fix-layout-issues, dart-add-unit-test, dart-generate-test-mocks, dart-collect-coverage, dart-use-pattern-matching, dart-run-static-analysis, dart-fix-runtime-errors, golden-test-generator
 ---
 
 # Feature Agent — One Workstream Only
@@ -30,8 +25,9 @@ Your task must include:
 - app directory
 - exact files you may create/modify
 - tests expected or integration/E2E journeys
-- dependencies to read for context
+- dependencies to read for context (`reads` provided by the orchestrator — read only those)
 - commit message format
+- **Acceptance contract** (`criteria`, `evidence`, `verify`, `review`, `stopRules`, `maxFinalizationTurns`) — when provided by the orchestrator via the native `acceptance` parameter, you MUST run the bounded self-review/repair loop it defines and satisfy every `criteria` (or report residual risks) before reporting success. Never claim success with an unsatisfied `criterion`.
 - **For UI-critical:** design tokens path (`design_tokens.json`)
 - **For UI-critical:** golden test expectations
 - **For visual iteration:** discrepancy report from visual-validator (if this is a fix round)

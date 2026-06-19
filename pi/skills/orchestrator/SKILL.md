@@ -20,48 +20,54 @@ If required information is missing, ask exactly one focused question at a time.
 ## Reliability-first pipeline (Updated)
 
 ```text
-Phase 0: Resolve config + scaffold + design token extraction
-  ↓ user approval
-Planner: validate/create implementation plan with design token awareness
-  ↓ user approval
+Phase 0: Resolve config + scaffold + flutter doctor + deterministic design token extraction + state.json init
+  ↓ user approval (unless autonomy mode)
+Planner: validate/create implementation plan with design token awareness, traceability matrix, acceptance contracts
+  ↓ user approval (unless autonomy mode)
 For each workstream in dependency order:
-  [NEW] Architect: pre-workstream consistency check
-  Feature-agent implements exactly one workstream
-  Gate commands run
-    [NEW] If UI-critical workstream:
-      Visual-validator: render → compare against mockup → iterate fixes
-      Golden-test-generator: establish visual baseline
-  Commit verified
-  [NEW] Architect: post-workstream consistency check
+  arch_check.sh: deterministic pre-workstream consistency check
+  Feature-agent implements exactly one workstream with native pi-subagents acceptance contract
+  Acceptance verify gates run (analyze + targeted tests + integration + goldens as planned)
+    If UI-critical:
+      golden_check.sh deterministic pre-filter → visual-validator semantic diff → bounded fix loop
+      Golden-test-generator establishes visual baseline
+  state.json updated + commit verified
+  arch_check.sh: deterministic post-workstream consistency check
   ↓ optional user checkpoint at configured gates
-Reviewer: fresh-context review against spec + plan + tests + goldens
+Reviewer: fresh-context review against spec + plan + traceability + acceptance evidence + goldens
   ↓ fixes/re-review if needed
-Final quality gate: analyze + tests + goldens + build/install/smoke
+Final quality gate: analyze + tests + goldens + integration + build/install/smoke
 ```
 
 ## Step 0 — Resume and recovery
 
+`HARNESS_TOOLS` = the harness `tools/` directory shipped by the installer (default
+`<project>/.pi/tools`, or wherever the harness was installed; resolve at Phase 0).
+
 Run on every orchestrator session start.
 
-1. Check for running subagents:
-
+1. **State file is the source of truth.** Read `[STATE_FILE]` (`docs/state.json`) first:
+   - Resume position = the first workstream whose `status` is `pending` or `failed`.
+   - For a `running` workstream with a `runId`, resume the in-flight run:
+     ```text
+     subagent({ action: "resume", id: runId })
+     ```
+     or interrupt it: `subagent({ action: "interrupt", id: runId })`.
+2. Check for running subagents:
 ```text
 subagent({ action: "status" })
 ```
-
 - If agents are running, wait/poll lightly until completion.
-- If a subagent fails, go to **Failed workstream decision**.
+- If a subagent failed, go to **Failed workstream decision**.
 
-2. Inspect git state:
-
+3. Inspect git state as a secondary check:
 ```bash
 git status --short
 git log --oneline -n 20
 ```
-
-- Clean tree: infer last completed workstream from commit messages.
-- Dirty tree: ask user whether to resume in-place or reset before dispatching another agent.
-- Not a git repo: ask whether to initialize git before continuing. Reliability-first default is to require git.
+- Clean tree: cross-check the latest commit against `state.json`.
+- Dirty tree: in autonomy mode, stash-or-commit a recovery checkpoint then resume; interactively, ask whether to resume in-place or reset.
+- Not a git repo: initialize git (autonomy mode: auto-init). Reliability-first default is to require git.
 
 ## Step 1 — Resolve runtime configuration
 
@@ -88,15 +94,46 @@ Read `AGENTS.md` if present. Then resolve these values:
 | **NEW:** `ARCHITECTURE_LOG_PATH` | If consistency desired | `docs/ARCHITECTURE_LOG.md` |
 | **NEW:** `VISUAL_VALIDATION_ENABLED` | Yes when mockups present | `true` if `MOCKUPS_PATH` set |
 | **NEW:** `MAX_VISUAL_ITERATIONS` | No | `3` |
+| **NEW:** `STATE_FILE` | Yes for autonomous resume | `docs/state.json` |
+| **NEW:** `AUTONOMY_MODE` | No | `false` (set `true` for autonomous runs) |
+| **NEW:** `MAX_AUTO_RETRIES` | No | `2` (retries before asking the user) |
 
 Ask for missing required values with `ask_user`. Do not combine unrelated questions.
+
+## Step 1a — Resolve models (model-agnostic, per `MODEL_STRATEGY.md`)
+
+No agent hardcodes a model. Resolve each agent role to a concrete model ID **on this
+machine** and cache the result for the session:
+
+1. Read the target project's `.pi/settings.json` → `subagents.agentOverrides[<agentName>]`.
+   If an agent has an override, use its `model`, `thinking`, and `fallbackModels`.
+   Confirm available agents with `subagent({ action: "list" })`.
+2. Otherwise resolve the agent's tier (see `modelTier` in each agent file and the tier table
+   in `MODEL_STRATEGY.md`) against `pi --list-models`:
+   - `planner-tier`, `ui-vision-tier` (**must be vision-capable**), `logic-tier`,
+     `mechanical-tier`, `review-tier`, `escalation-tier`.
+   - If no vision-capable model exists on the machine, do NOT dispatch any UI-critical
+     workstream — `ask_user` for a vision model before proceeding.
+3. Store the resolved map (agent → model `:thinking` string) for the session and pass it as
+   the per-task `model` parameter on every `subagent()` dispatch. The orchestrator overrides
+   the feature-agent's default with a `ui-vision-tier` model for UI-critical dispatches.
+4. Only if (1) and (2) both fail, `ask_user` — never guess a model ID.
 
 ## Step 2 — Phase 0 environment/scaffold check
 
 For Flutter projects:
 
+0. **Toolchain gate (autonomy-critical).** Run and parse `flutter doctor -v`:
+   ```bash
+   cd [APP_DIR] && flutter doctor -v
+   ```
+   - If Flutter or the Android toolchain (Java, Android SDK, cmdline-tools) is missing or
+     `✗`, STOP and report — later build/integration/golden gates will fail un-autonomously.
+     In autonomy mode, attempt documented remediation only if non-destructive; otherwise
+     report and pause.
+   - Record the Flutter version in `state.json`.
 1. Check whether `[APP_DIR]/pubspec.yaml` exists.
-2. If missing, ask user whether to scaffold now.
+2. If missing, ask user whether to scaffold now (autonomy mode: proceed with config defaults).
 3. If scaffolding is approved, ask for `flutter create` inputs if not configured:
    - project name
    - organization (`--org`)
@@ -105,29 +142,49 @@ For Flutter projects:
 5. Install dependencies only from runtime config/spec/build instructions.
 6. Copy or preserve generated artifacts only when runtime config explicitly points to them.
 
-**NEW: Step 2a — Design Token Extraction**
+**Git gate.** If `[APP_DIR]` is not a git repository, initialize one (autonomy mode: auto-init
+without asking; interactive: ask). Reliability-first default is to require git:
+```bash
+cd [APP_DIR]
+git init 2>/dev/null || true
+git add -A && git commit -m "Phase 0: scaffold" --allow-empty
+```
+
+**State file init.** Create `[STATE_FILE]` (`docs/state.json`) as the source of truth for
+resume. Schema:
+```json
+{
+  "started_at": "<ISO>",
+  "flutter_version": "<from doctor>",
+  "models": { "planner": "...", "feature-agent": "...", ... },
+  "current_workstream": null,
+  "workstreams": {
+    "W01": { "status": "pending|running|passed|failed|skipped", "runId": null, "commit": null, "attempts": 0 }
+  }
+}
+```
+Update `state.json` after every workstream transition (not only commits).
+
+**Step 2a — Design Token Extraction (deterministic).**
 
 If `STITCH_MOCKUPS_PATH` contains `*/code.html` files:
 
 1. Check if `DESIGN_TOKENS_PATH` already exists:
-   - If yes, compare modification dates. If Stitch HTML is newer, ask user if re-extraction is needed.
+   - If yes, compare modification dates. If Stitch HTML is newer, re-extract.
    - If no, proceed with extraction.
+2. Run the deterministic extractor script (ships with the harness — no improvisation):
+   ```bash
+   node [HARNESS_TOOLS]/extract_design_tokens.js [STITCH_MOCKUPS_PATH] [DESIGN_TOKENS_PATH]
+   ```
+   Exit code 0 = success (warnings printed to stderr are recorded). Exit 2 = fatal — report.
+3. Verify `[DESIGN_TOKENS_PATH]` exists and is valid JSON.
+4. Report extraction summary: screens processed, colors extracted, typography entries,
+   components inferred, warnings.
 
-2. Dispatch the design-token-extractor:
+(If the script is unavailable, fall back to dispatching `design-token-extractor` skill via a
+feature-agent, but flag this as non-deterministic in the review report.)
 
-```text
-subagent({
-  agent: "flutter-dev.feature-agent",
-  context: "fresh",
-  async: true,
-  task: "Run the design-token-extractor skill. Parse all code.html files in [STITCH_MOCKUPS_PATH]. Merge tailwind configs, resolve conflicts, infer components. Write unified design_tokens.json to [DESIGN_TOKENS_PATH]. Also read the design system doc at [DESIGN_SYSTEM_PATH] for cross-reference if available."
-})
-```
-
-3. Wait for completion and verify `design_tokens.json` exists.
-4. Report extraction summary: screens processed, colors extracted, typography entries, components inferred.
-
-7. Run initial gate:
+**Initial gate.**
 
 ```bash
 cd [APP_DIR]
@@ -173,101 +230,161 @@ After completion:
 
 ## Step 4 — Workstream loop
 
+Resume semantics: read `[STATE_FILE]`. Skip workstreams whose status is `passed`.
+For a `running` workstream with a `runId`, offer `subagent({ action: "resume", id: runId })`
+before re-dispatching. Update `state.json` at every transition.
+
 For each workstream in dependency order:
 
-### 4a — Pre-workstream consistency check (NEW)
+### 4a — Pre-workstream consistency check (deterministic)
 
-```text
-subagent({
-  agent: "flutter-dev.architect",
-  context: "fresh",
-  task: "Run architecture consistency check BEFORE workstream [WORKSTREAM_ID]. Report PASS/WARN/FAIL for all 9 checks. Focus on newly introduced violations since last check."
-})
+Run the deterministic scanner directly (no agent improvisation):
+```bash
+[HARNESS_TOOLS]/arch_check.sh [APP_DIR] before_workstream [WORKSTREAM_ID] [DESIGN_TOKENS_PATH] [ARCHITECTURE_LOG_PATH]
 ```
-
-- **PASS on all:** proceed.
-- **WARN on some:** report to user, proceed.
-- **FAIL on any:** report to user, ask whether to block or override.
+Parse the JSON on stdout. Record the `summary` as the pre-baseline in `state.json`.
+- **all PASS/WARN:** proceed.
+- **any FAIL:** apply autonomy-mode recovery (see Step 4h) before continuing.
 
 ### 4b — Parse workstream
 
-1. Parse workstream ID, type, dependencies, file list, tests, tier, model guidance.
+1. Parse workstream ID, type, dependencies, file list, tests, tier, model tier, and the
+   **`acceptance` contract** emitted by the planner (criteria, evidence, verify, review,
+   stopRules, maxFinalizationTurns).
 2. Determine if this is `UI-critical` (marked by planner).
-3. Select model/thinking using `MODEL_STRATEGY.md` and the updated table below.
+3. Resolve the model for this dispatch from the session model map (Step 1a):
+   - UI-critical → `ui-vision-tier` model.
+   - logic/foundation → `logic-tier` model.
+   - simple/golden/arch → `mechanical-tier` model.
+   Always pass `model` as a per-dispatch parameter (`provider/id:thinking`).
 
-### 4c — Model selection (UPDATED)
+### 4c — Build the acceptance contract (per workstream)
 
-Use `MODEL_STRATEGY.md` when present. Always choose a thinking level supported by the selected model.
+The planner emits an `acceptance` object per workstream (see planner skill). The orchestrator
+adapts it into the `pi-subagents` native `acceptance` parameter and passes it on the dispatch.
+This gives the child a **bounded self-review/repair loop** before it reports success —
+tool-enforced reliability, not prompt-enforced.
 
-| Workstream type | First attempt | Thinking | Visual validation |
-|---|---:|---:|---:|
-| UI-critical (screens/widgets) | `openai-codex/gpt-5.5` | high | **YES** |
-| Complex logic (sync, offline, DB) | `opencode-go/deepseek-v4-pro` | xhigh | No |
-| Medium feature (logic) | `opencode-go/deepseek-v4-pro` | high | No |
-| Simple/mechanical | `opencode-go/deepseek-v4-flash` | high | No |
-| Foundation/scaffold | `opencode-go/deepseek-v4-pro` | xhigh | No |
-| IT/E2E tests | `opencode-go/deepseek-v4-pro` | high | No |
-
-### 4d — Dispatch feature-agent
-
-```text
-subagent({
-  agent: "flutter-dev.feature-agent",
-  context: "fresh",
-  async: true,
-  task: "Implement workstream [WORKSTREAM_ID]. ... [standard task inputs]. If UI-critical: read design_tokens.json at [DESIGN_TOKENS_PATH] and use Theme.of(context) references only."
-})
+Example for a UI-critical feature workstream `W06: Catalog Grid`:
+```json
+{
+  "agent": "flutter-dev.feature-agent",
+  "context": "fresh",
+  "async": true,
+  "model": "<ui-vision-tier-model>:high",
+  "output": "specs/runs/W06.json",
+  "outputMode": "file-only",
+  "reads": ["specs/plan.md", "docs/design_tokens.json"],
+  "task": "Implement workstream W06: Catalog Grid ... If UI-critical: read design_tokens.json at [DESIGN_TOKENS_PATH] and use Theme.of(context) references only.",
+  "acceptance": {
+    "criteria": [
+      "Catalog grid renders a 2-column grid of book cards matching mockup 06-catalog-grid",
+      "Tapping a card navigates to book detail (spec §3.2)",
+      "Search bar filters the grid by title/author (spec §3.3)"
+    ],
+    "evidence": ["changed-files", "tests-added", "commands-run", "validation-output"],
+    "verify": [
+      { "id": "analyze", "command": "cd [APP_DIR] && flutter analyze" },
+      { "id": "unit",    "command": "cd [APP_DIR] && flutter test test/features/catalog/" },
+      { "id": "golden",  "command": "cd [APP_DIR] && flutter test test_goldens/catalog_grid_golden_test.dart" },
+      { "id": "integration", "command": "cd [APP_DIR] && flutter test integration_test/catalog_flow_test.dart", "allowFailure": true }
+    ],
+    "review": { "agent": "flutter-dev.reviewer", "focus": "W06 spec compliance + design token usage", "required": false },
+    "stopRules": ["acceptance criteria all satisfied", "3 failed repair turns", "scope creep beyond W06"],
+    "maxFinalizationTurns": 4
+  }
+}
 ```
+The child runs its self-review/repair loop, then returns. If `acceptance` cannot be fully
+satisfied it reports residual risks instead of claiming success.
 
-Wait for completion. Verify commit and clean tree.
+### 4d — Dispatch feature-agent (with acceptance + per-dispatch model)
 
-### 4e — Visual validation (NEW — UI-critical only)
+Dispatch via `subagent()` with the parameters from 4c. Use `output: "file-only"` and
+`reads` to bound the child's context (avoid reading the whole repo). Record the returned
+`runId` in `state.json` for the workstream. Verify commit and clean tree on completion.
+
+### 4e — Visual validation (UI-critical only) — deterministic pre-filter then vision
 
 If the workstream is `UI-critical`:
 
-1. Dispatch visual-validator:
+1. **Deterministic pre-filter** — run the golden test in CHECK mode first:
+   ```bash
+   [HARNESS_TOOLS]/golden_check.sh [APP_DIR] [GOLDEN_TEST_SRC]/[widget]_golden_test.dart
+   ```
+   - `PASS` → the rendered widget matches the committed golden baseline. Skip vision; the
+     golden IS the deterministic visual regression gate. Proceed to 4f.
+   - `BLOCKER` → report (compile/build error); apply autonomy recovery.
+   - `FAIL` → a diff was emitted; continue to step 2 for **semantic** vision analysis.
+2. **Semantic vision diff** — only on `FAIL`. Dispatch the visual-validator (ui-vision-tier)
+   with `reads` limited to the mockup `screen.png`, the emitted diff PNG(s), `design_tokens.json`,
+   and the widget file. The validator classifies diffs as **acceptable pixel drift** vs
+   **semantic mismatch** (wrong icon, wrong component, wrong copy, missing element).
+   ```text
+   subagent({
+     agent: "flutter-dev.visual-validator",
+     context: "fresh",
+     model: "<ui-vision-tier-model>:high",
+     reads: ["<mockup>/screen.png", "<diff pngs>", "docs/design_tokens.json", "<widget file>"],
+     task: "Semantic-diff [WIDGET] vs mockup [SCREEN]. The deterministic golden check already FAILED and emitted diffs. Classify each diff as acceptable-drift vs semantic-mismatch and produce a discrepancy report with exact fix instructions. Max iterations: [MAX_VISUAL_ITERATIONS]."
+   })
+   ```
+3. **Iteration** — route the discrepancy report back to the feature-agent (re-dispatch with
+   the report as `task` context, same `acceptance.verify` golden command). Re-run the
+   deterministic pre-filter. Repeat until `PASS` or `MAX_VISUAL_ITERATIONS`.
+4. **Parity** → the golden PNG committed this round is the permanent baseline. Proceed.
+5. **Max iterations without parity** → autonomy mode: auto-accept if only MINOR diffs remain
+   (log to `state.json` + review report); otherwise `ask_user`.
 
-```text
-subagent({
-  agent: "flutter-dev.visual-validator",
-  context: "fresh",
-  async: true,
-  task: "Visual-validate [WIDGET_NAME] against Stitch mockup [SCREEN_NAME]. Mockup: [MOCKUP_PATH]. Golden test: [GOLDEN_TEST_SRC][widget]_golden_test.dart. Design tokens: [DESIGN_TOKENS_PATH]. Max iterations: [MAX_VISUAL_ITERATIONS]."
-})
+> Preferred chain form (use when the workstream is well-scoped and model/tooling are stable):
+> ```text
+> subagent({
+>   chain: [
+>     { agent: "flutter-dev.feature-agent", model: "<ui-vision-tier-model>:high", task: "Implement [WORKSTREAM_ID] with acceptance contract ...", output: "runs/[WORKSTREAM_ID]/feature.md", acceptance: { ... } },
+>     { agent: "flutter-dev.visual-validator", model: "<ui-vision-tier-model>:high", task: "Use {previous}; semantic-diff rendered golden vs mockup; return discrepancy report or PASS", output: "runs/[WORKSTREAM_ID]/visual.md" },
+>     { agent: "flutter-dev.feature-agent", model: "<ui-vision-tier-model>:high", task: "If {previous} contains discrepancies, apply ONLY those fixes; otherwise no-op", output: "runs/[WORKSTREAM_ID]/visual-fix.md", acceptance: { ... } }
+>   ],
+>   context: "fresh",
+>   async: true,
+>   chainDir: "runs/[WORKSTREAM_ID]"
+> })
+> ```
+> `{previous}` threads reports between steps and `chainDir` stores artifacts. Use the explicit
+> dispatch loop instead when you need tighter manual observability.
+
+### 4f — Post-workstream consistency check (deterministic)
+
+```bash
+[HARNESS_TOOLS]/arch_check.sh [APP_DIR] after_workstream [WORKSTREAM_ID] [DESIGN_TOKENS_PATH] [ARCHITECTURE_LOG_PATH]
 ```
+Compare JSON `summary` to the pre-baseline in `state.json`. New FAIL-level violations must be
+explained; apply autonomy-mode recovery if introduced by this workstream.
 
-2. Wait for completion.
-3. Read the visual comparison report.
-4. **If discrepancies found** (iteration 1-N):
-   - Pass the discrepancy report back to feature-agent for fixes
-   - Re-dispatch visual-validator after fixes
-   - Repeat until parity OR max iterations reached
-5. **If parity achieved:**
-   - Golden-test-generator establishes the permanent baseline
-   - Report success, proceed to next workstream
-6. **If max iterations reached without parity:**
-   - Present remaining discrepancies to user
-   - Options: increase iterations, lower tolerance, skip for this screen, abort
+### 4g — Record and continue
 
-### 4f — Post-workstream consistency check (NEW)
+Update `state.json`: set workstream `status` (`passed`/`failed`/`skipped`), `commit`, clear
+`runId`. Commit `state.json` with the workstream commit. Continue to the next workstream only
+if successful or recovery was approved.
 
-```text
-subagent({
-  agent: "flutter-dev.architect",
-  context: "fresh",
-  task: "Run architecture consistency check AFTER workstream [WORKSTREAM_ID]. Compare against pre-workstream baseline. Flag newly introduced violations."
-})
-```
+### 4h — Autonomy-mode recovery (before `ask_user`)
 
-- Report findings to user. New FAIL-level violations require explanation.
+When a workstream or gate fails, do NOT immediately `ask_user`. First attempt bounded
+recovery (unless `AUTONOMY_MODE=false` and the failure is high-stakes):
 
-### 4g — Continue
+1. Reset and retry with the **same** resolved model (`attempts` ≤ `MAX_AUTO_RETRIES`).
+2. Retry with the **next tier up** (mechanical → logic → review → escalation) once.
+3. For visual-only failures: if only MINOR diffs remain after max iterations, auto-accept
+   and log (do not block).
+4. Only after `MAX_AUTO_RETRIES` exhausted AND escalation-tier attempted, `ask_user` with the
+   full failure + diff + git status.
 
-Continue to next workstream only if successful or user approves recovery.
+Non-blocking clarifications during `async` runs go through the `intercom` channel, not a
+blocking `ask_user`.
 
 ## Failed workstream decision
 
-Do not debug failures yourself. Present the failure report with options:
+Do not debug failures yourself. Apply **autonomy-mode recovery** first (Step 4h). Only after
+bounded retries + tier escalation are exhausted, present the failure report with options:
 
 ```text
 ask_user({
@@ -340,11 +457,11 @@ Do not declare success if required commands fail or were skipped without user ap
 
 If mockup screenshots or Stitch HTML are provided:
 
-1. **Phase 0:** Design-token-extractor creates `design_tokens.json` from Stitch HTML (colors, typography, spacing, components, screens).
-2. **During planning:** Planner marks UI workstreams as `UI-critical` and references design token names.
+1. **Phase 0:** `extract_design_tokens.js` creates `design_tokens.json` from Stitch HTML (colors, typography, spacing, screens); design-token-extractor may semantically enhance it.
+2. **During planning:** Planner marks UI workstreams as `UI-critical`, references design token names, and emits acceptance contracts + traceability.
 3. **During UI workstreams:** Feature-agent reads design_tokens.json and implements using theme constants.
-4. **After UI workstream:** Visual-validator renders the widget via golden test, compares against Stitch `screen.png` using vision, produces discrepancy report, and iterates with feature-agent until parity (max N iterations).
-5. **On parity confirmed:** Golden-test-generator creates the permanent visual baseline. Golden PNG goes to `test/goldens/`, golden test goes to `test_goldens/`.
+4. **After UI workstream:** `golden_check.sh` runs the deterministic golden pre-filter. If it fails or baseline is missing, visual-validator performs semantic vision diff against Stitch `screen.png`, produces discrepancy report, and iterates with feature-agent until parity (max N iterations).
+5. **On parity confirmed:** Golden-test-generator creates/commits the permanent visual baseline. Golden PNG goes to `test/goldens/`, golden test goes to `test_goldens/`.
 6. **Golden test policy:**
    - Source mockups (`screen.png` + `code.html`) are **IMMUTABLE** — never overwrite.
    - Golden PNGs in `test/goldens/` are generated artifacts — regenerated during intentional rebaselining.
@@ -354,16 +471,16 @@ If mockup screenshots or Stitch HTML are provided:
 
 ## Architecture consistency (NEW)
 
-The architect agent runs before and after each workstream:
+`arch_check.sh` runs before and after each workstream:
 
-- **Pre-workstream:** Establish a baseline before changes are made.
+- **Pre-workstream:** Establish a deterministic JSON baseline before changes are made.
 - **Post-workstream:** Detect newly introduced anti-patterns (print() calls, bare `!`, setState overreach, missing dispose(), dynamic misuse, generated file edits, hardcoded colors).
 - **Thresholds:**
   - PASS: no issues
-  - WARN: minor issues (report, continue)
-  - FAIL: significant new violations (report to user, ask to block or override)
+  - WARN: minor issues (record, continue)
+  - FAIL: significant new violations (autonomy-mode recovery before asking the user)
 
-The architect does NOT modify code. It reports findings to the orchestrator.
+The architect agent is optional explanation/triage for scanner results and has read-only tools only.
 
 ## Architecture decision log (NEW)
 

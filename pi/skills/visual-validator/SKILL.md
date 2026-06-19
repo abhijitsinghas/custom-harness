@@ -35,22 +35,37 @@ Read these in order:
 3. The mockup `screen.png` — the visual benchmark
 4. The widget code — what was actually implemented
 
-### Step 2: Render the widget
+### Step 2: Deterministic golden pre-filter
 
-Run the golden test to produce a rendered PNG of the widget:
+If a previously validated golden baseline already exists, run the golden test in CHECK mode first:
+
+```bash
+[HARNESS_TOOLS]/golden_check.sh [APP_DIR] test_goldens/[widget_name]_golden_test.dart
+```
+
+- `PASS` — the current widget matches the committed baseline. If that baseline was previously validated against the mockup, report success; no vision call is needed.
+- `FAIL` — Flutter emitted deterministic golden diff artifacts. Continue to semantic vision comparison.
+- `BLOCKER` — compile/build/golden-test setup issue. Report blocker immediately.
+
+If no baseline exists yet (first implementation), skip this pre-filter and continue to Step 3.
+
+### Step 3: Render current output for mockup comparison
+
+Render the current widget to a PNG for semantic comparison against the Stitch mockup:
 
 ```bash
 cd [APP_DIR]
 flutter test --update-goldens test_goldens/[widget_name]_golden_test.dart
 ```
 
-This creates a golden PNG at `test/goldens/[widget_name]_light.png` (and dark mode variant if configured).
+This creates/updates a rendered PNG at `test/goldens/[widget_name]_light.png` (and dark mode variant if configured). The PNG is a candidate baseline only after parity is confirmed.
 
-### Step 3: Read and compare
+### Step 4: Read and compare semantically
 
 Read both images:
 - The mockup `screen.png` (from Stitch)
-- The rendered golden PNG (from Step 2)
+- The rendered golden PNG (from Step 3)
+- Any deterministic diff PNGs emitted by `golden_check.sh` (if present)
 
 Compare across these dimensions:
 
@@ -64,14 +79,14 @@ Compare across these dimensions:
 | **Shadows** | Elevation, blur, offset | Subjective match |
 | **Icons** | Icon glyph, size, color | Exact for icon choice, 2dp for size |
 
-### Step 4: Score each dimension
+### Step 5: Score each dimension
 
 Score each dimension:
 - **MATCH** — No visible difference, within tolerance
 - **MINOR_DIFFERENCE** — Visible but doesn't break the design (e.g., 1px alignment shift)
 - **MISMATCH** — Clearly wrong (e.g., wrong color, missing element, completely different layout)
 
-### Step 5: Produce discrepancy report
+### Step 6: Produce discrepancy report
 
 If any MISMATCH or >2 MINOR_DIFFERENCE items exist, produce a report:
 
@@ -96,11 +111,11 @@ For each mismatch, provide exact instructions:
 - Why: Match design token spacing.md (12dp card gap from Stitch HTML)
 ```
 
-### Step 6: Route back to feature-agent
+### Step 7: Route back to feature-agent
 
 Pass the discrepancy report to the feature-agent with instructions to apply the fixes. The orchestrator handles the routing.
 
-### Step 7: Re-validate
+### Step 8: Re-validate
 
 After the feature-agent applies fixes:
 1. Re-run the golden test
@@ -109,7 +124,7 @@ After the feature-agent applies fixes:
 4. Score again
 5. Report
 
-### Step 8: Termination
+### Step 9: Termination
 
 - **Parity confirmed:** All dimensions score MATCH or ≤2 MINOR_DIFFERENCE
   - Report: "Visual parity achieved for [Widget Name]"
@@ -150,15 +165,20 @@ For common component types, apply extra checks:
 
 - **Do NOT modify production code directly** — produce reports, don't edit
 - **Do NOT overwrite source mockup images** — `screen.png` and `code.html` are immutable
-- **Golden PNGs are transient during iteration** — delete and regenerate freely
+- **Golden PNGs are transient during iteration** — regenerate locally until parity, then commit the accepted baseline
 - **Always reference design_tokens.json by token name** — never hardcode hex in reports
 - **Report exact line numbers where possible** — the feature-agent needs precision
+- **Use deterministic diff first, vision second** — Flutter golden check is the regression gate; vision classifies semantic mismatch vs acceptable drift
+- **Viewport normalization is mandatory** — golden tests must render at the same logical size/aspect ratio as the Stitch `screen.png` reference
+- **Font/icon parity is mandatory** — golden tests must load the same fonts/icons as production (`FontLoader`, Material icons, local assets) to avoid machine-specific diffs
 - **Dark mode comparison is optional but recommended** — if both light and dark mockup screens exist, validate both
 
 ## Edge cases
 
 - **No golden test exists yet:** Run golden-test-generator first, then validate
 - **Widget depends on runtime data:** Use test doubles/mocks for golden rendering
-- **Network images in mockups:** Use placeholder containers with matching aspect ratios for goldens
+- **Network images in mockups:** Use deterministic local stubs or placeholder containers with matching aspect ratios for goldens; never fetch remote images in golden tests
+- **Font mismatch:** If typography differs but code uses the correct text theme, verify fonts are loaded in the golden harness before requesting widget changes
+- **Different screenshot sizes:** Normalize by logical viewport/aspect ratio first; do not request code changes for pure scale differences
 - **Animation in component:** Capture first frame only; note that animation wasn't validated
 - **Scrollable content:** Compare the first visible portion; note that overflow content wasn't compared

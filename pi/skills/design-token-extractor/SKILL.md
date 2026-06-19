@@ -32,14 +32,23 @@ ls [STITCH_MOCKUPS_PATH]/*/code.html | wc -l
 
 If no HTML files found: report to user and ask if a different path should be used.
 
-### Step 2: Run the Stitch parser
+### Step 2: Run the deterministic extractor script
 
-Invoke the `stitch-html-parser` skill logic to parse all HTML files and extract raw tokens. The parser:
+Prefer the shipped deterministic script over improvised parsing:
 
-1. Reads all `*/code.html` files
-2. Extracts tailwind.config blocks
-3. Merges and resolves naming conflicts
-4. Produces a draft `design_tokens.json`
+```bash
+node [HARNESS_TOOLS]/extract_design_tokens.js [STITCH_MOCKUPS_PATH] [DESIGN_TOKENS_PATH]
+```
+
+The script:
+
+1. Reads all `code.html` files under the Stitch directory
+2. Extracts `<script id="tailwind-config">` blocks
+3. Evaluates tailwind config object literals in a sandboxed Node `vm`
+4. Merges and normalizes colors, typography, spacing, border radius, and screen catalog
+5. Writes `design_tokens.json` with extraction metadata and warnings
+
+Only fall back to the prose `stitch-html-parser` workflow if the script is unavailable; flag that fallback as non-deterministic in the report.
 
 ### Step 3: Enhance with component inference
 
@@ -74,15 +83,13 @@ If `DESIGN_SYSTEM_PATH` points to a `01-design.md` or similar:
 - Identify discrepancies (e.g., doc says `#0D7377` accent, HTML uses `#00595c`)
 - Report discrepancies to user; prefer the HTML as the visual source of truth
 
-### Step 5: Write output
+### Step 5: Write/enhance output
 
-Write the enhanced `design_tokens.json` to `docs/design_tokens.json` (configurable):
+The script writes the base `design_tokens.json` to `docs/design_tokens.json` (configurable).
+After it succeeds, optionally enhance `components` with semantic component inference if needed.
+Do not reparse the raw HTML manually unless the script missed a known value.
 
-```bash
-mkdir -p [OUTPUT_DIR]
-```
-
-Write JSON with:
+Write/enhance JSON with:
 - Complete color palette (light + dark)
 - Typographic scale
 - Spacing scale

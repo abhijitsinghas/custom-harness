@@ -2,8 +2,8 @@
 name: planner
 package: flutter-dev
 description: Project-agnostic planner. Reads runtime config, design tokens, specs, mockups, and existing code; produces dependency-ordered workstreams with UI-critical annotations, design token references, and golden test expectations.
-model: openai-codex/gpt-5.5
-thinking: high
+# Model resolved by orchestrator per dispatch (planner-tier). See MODEL_STRATEGY.md.
+modelTier: planner-tier
 tools: read, write, edit, bash, glob, web_search, fetch_content, ask_user
 systemPromptMode: replace
 inheritProjectContext: false
@@ -50,11 +50,11 @@ If any required input is missing or contradictory, ask the user one focused ques
    - `E2E{N}` end-to-end test workstreams
 10. Insert integration tests after layer completion points, not only at the end.
 11. Insert E2E tests after complete user journeys are deliverable.
-12. Assign tier/model/thinking guidance per workstream using updated routing:
-    - UI-critical → GPT-5.5, thinking: high, visual validation: YES
-    - Complex logic → DeepSeek V4 Pro, thinking: xhigh, visual validation: NO
-    - Medium logic → DeepSeek V4 Pro, thinking: high, visual validation: NO
-    - Simple/mechanical → DeepSeek V4 Flash, thinking: high, visual validation: NO
+12. Assign tier/model/thinking guidance per workstream using updated routing (the orchestrator resolves the concrete model ID per MODEL_STRATEGY.md):
+    - UI-critical → ui-vision-tier, thinking: high, visual validation: YES
+    - Complex logic → logic-tier, thinking: xhigh, visual validation: NO
+    - Medium logic → logic-tier, thinking: high, visual validation: NO
+    - Simple/mechanical → mechanical-tier, thinking: high, visual validation: NO
 13. **NEW: For UI-critical workstreams, specify:**
     - Which Stitch mockup screen(s) to validate against
     - Which design tokens to use (exact token names from design_tokens.json)
@@ -102,21 +102,33 @@ When design_tokens.json is available, include a summary:
 ### W01: {Name}
 - **Type:** Feature | Feature (UI-critical)
 - **Tier:** Foundation | Complex | Medium | Simple | UI-critical
-- **Recommended model:** {model family/capability}
-- **Recommended thinking:** xhigh | high
+- **Model tier:** planner-tier | ui-vision-tier | logic-tier | mechanical-tier | review-tier  (orchestrator resolves concrete ID per MODEL_STRATEGY.md)
 - **Visual validation:** Yes | No
 - **Mockup reference:** `design-assets/.../screen-name/screen.png` (if UI-critical)
 - **Design tokens to use:** `accent` for buttons, `surface` for cards, `h1` for titles, `md` spacing for gaps
 - **Depends on:** None | Wxx
+- **Spec requirements covered:** §3.2, §3.3  (trace to SPEC sections)
 - **Files to create/modify:**
   - `exact/path`
 - **Tests expected:**
-  - `exact/test/path`
+  - `exact/test/path` (unit/widget)
+  - `integration_test/..._test.dart` (one journey per spec function in scope)
   - `test_goldens/[widget]_golden_test.dart` (if UI-critical)
 - **Description:** What this workstream builds.
-- **Acceptance criteria:**
+- **Acceptance criteria:** (observable, testable)
   - Observable behavior/testable outcome.
   - **For UI-critical:** Widget must visually match [mockup screen name] under visual-validator comparison.
+- **Acceptance contract** (passed to the feature-agent dispatch by the orchestrator):
+  - `criteria`: ["<acceptance criterion 1>", "<acceptance criterion 2>", ...]
+  - `evidence`: [changed-files, tests-added, commands-run, validation-output]
+  - `verify`:
+    - `{ id: analyze,       command: "cd [APP_DIR] && flutter analyze" }`
+    - `{ id: unit,          command: "cd [APP_DIR] && flutter test <test path>" }`
+    - `{ id: golden,        command: "cd [APP_DIR] && flutter test test_goldens/<widget>_golden_test.dart" }` (if UI-critical)
+    - `{ id: integration,   command: "cd [APP_DIR] && flutter test integration_test/<journey>_test.dart", allowFailure: true }`
+  - `review`: `{ agent: "flutter-dev.reviewer", focus: "<workstream> spec compliance", required: false }`
+  - `stopRules`: ["all criteria satisfied", "3 failed repair turns", "scope creep beyond <WORKSTREAM_ID>"]
+  - `maxFinalizationTurns`: 4
 - **Commands:**
   - `cd [app_dir] && flutter test ...`
   - `cd [app_dir] && flutter test --update-goldens test_goldens/...` (for initial baseline)
@@ -142,13 +154,33 @@ When design_tokens.json is available, include a summary:
 
 ## Tier rules (UPDATED)
 
-| Tier | Use for | Model guidance | Thinking | Visual validation |
+| Tier | Use for | Model tier (orchestrator resolves ID) | Thinking | Visual validation |
 |---|---|---|---|---|
-| UI-critical | screens, widgets, visual layouts from mockups | GPT-5.5 | high | YES |
-| Foundation | scaffold, architecture, database/schema, routing, generated-code setup | DeepSeek V4 Pro | xhigh | NO |
-| Complex logic | multi-screen/stateful/data-heavy/sync/auth (non-visual) | DeepSeek V4 Pro | xhigh | NO |
-| Medium logic | normal feature slice with data/provider/tests (non-visual) | DeepSeek V4 Pro | high | NO |
-| Simple | constants, small widgets, docs, minor utilities | DeepSeek V4 Flash | high | NO |
+| UI-critical | screens, widgets, visual layouts from mockups | ui-vision-tier (vision-capable) | high | YES |
+| Foundation | scaffold, architecture, database/schema, routing, generated-code setup | logic-tier | xhigh | NO |
+| Complex logic | multi-screen/stateful/data-heavy/sync/auth (non-visual) | logic-tier | xhigh | NO |
+| Medium logic | normal feature slice with data/provider/tests (non-visual) | logic-tier | high | NO |
+| Simple | constants, small widgets, docs, minor utilities | mechanical-tier | high | NO |
+
+## Spec → Test Traceability Matrix (NEW — required)
+
+Every spec requirement MUST map to at least one test. The reviewer verifies this matrix is
+complete and that every mapped test exists and passes. This is the mechanism that guarantees
+"all functions in the spec work reliably."
+
+| Spec ref | Requirement (short) | Workstream | Unit/widget test | Integration/E2E test | Golden (UI) |
+|---|---|---|---|---|---|
+| §3.2 | Tap card → detail | W06 | `test/features/catalog/book_card_test.dart` | `integration_test/catalog_flow_test.dart` | — |
+| §3.3 | Search filters grid | W06 | `test/features/catalog/search_test.dart` | `integration_test/catalog_flow_test.dart` | — |
+| §4.1 | Loan a book | W14 | `test/features/loan/loan_test.dart` | `integration_test/loan_flow_test.dart` | — |
+| §UI-06 | Catalog grid layout | W06 | — | — | `test_goldens/catalog_grid_golden_test.dart` |
+
+Rules:
+- A spec requirement with NO test is a **planning blocker** — add a workstream or a test.
+- Every feature workstream's `acceptance.verify` MUST include at least one integration test
+  exercising its spec functions (run on an emulator when available; `allowFailure: true` if
+  the emulator is not configured, so the gate degrades gracefully rather than silently skipping).
+- UI-critical requirements MUST have a golden test in addition to any logic tests.
 
 ## Golden test planning rules (NEW)
 

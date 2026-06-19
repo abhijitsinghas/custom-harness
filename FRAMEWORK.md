@@ -18,17 +18,17 @@
 
 ## Installed agents
 
-| Agent | Role | Default model | Thinking |
+| Agent | Role | Capability tier | Thinking |
 |---|---|---|---|
-| `planner` | Reads config/spec/design-tokens/artifacts/code and writes dependency-ordered workstreams with UI-critical annotations | `openai-codex/gpt-5.5` | high |
-| `feature-agent` | Implements exactly one workstream; for UI-critical: reads design tokens, generates golden tests, participates in visual iteration | `opencode-go/deepseek-v4-pro` (logic) / `openai-codex/gpt-5.5` (UI-critical) | xhigh / high |
-| `visual-validator` | Renders widget via golden test, compares against Stitch mockup using vision, produces discrepancy reports, iterates until pixel-parity | `openai-codex/gpt-5.5` | high |
-| `architect` | Fast mechanical pattern scanning before and after workstreams; read-only cheat-sheet guard | `opencode-go/deepseek-v4-flash` | high |
-| `reviewer` | Deep review of completed workstreams against spec/plan/design-tokens/golden-tests/architecture-log/gates | `openai-codex/gpt-5.4` | high |
+| `planner` | Reads config/spec/design-tokens/artifacts/code and writes dependency-ordered workstreams with UI-critical annotations and acceptance contracts | `planner-tier` | high |
+| `feature-agent` | Implements exactly one workstream; for UI-critical: reads design tokens, generates golden tests, participates in visual iteration | `logic-tier` default / `ui-vision-tier` for UI-critical | xhigh / high |
+| `visual-validator` | Semantic vision diff between rendered UI/golden diffs and Stitch mockup; produces discrepancy reports; never edits code | `ui-vision-tier` | high |
+| `architect` | Fast deterministic pattern scanning before and after workstreams; read-only guard | `mechanical-tier` | high |
+| `reviewer` | Deep review of completed workstreams against spec/plan/design-tokens/golden-tests/architecture-log/gates | `review-tier` | high |
 
 The orchestrator is a skill/procedure, not a coding agent. It dispatches these agents and asks the user for missing or high-stakes decisions.
 
-Model choices are defaults. See `MODEL_STRATEGY.md` for the full routing table and thinking-level constraints.
+Concrete model choices are resolved per target machine. See `MODEL_STRATEGY.md` for capability tiers, `subagents.agentOverrides`, and thinking-level constraints.
 
 ---
 
@@ -62,14 +62,14 @@ Phase 0: Resolve config + scaffold + extract design tokens from Stitch HTML
 Phase 1: Planner creates plan with UI-critical annotations and design token references
          ↓ user approval
 Phase 2: For each workstream in dependency order:
-          2a. Architect: pre-workstream consistency check
-          2b. Feature-agent: implement one workstream
-          2c. Gates: analyze + test
-          2d. [IF UI-critical] Visual-validator: render→compare→iterate→fix
+          2a. arch_check.sh: deterministic pre-workstream consistency check
+          2b. Feature-agent: implement one workstream with native pi-subagents acceptance contract
+          2c. Acceptance verify gates: analyze + unit/widget + integration + golden as planned
+          2d. [IF UI-critical] golden_check.sh deterministic pre-filter → visual-validator semantic diff → fix loop
           2e. [IF UI-critical] Golden-test-generator: establish visual baseline
           2f. Feature-agent: append architecture log
-          2g. Architect: post-workstream consistency check
-          2h. Commit
+          2g. arch_check.sh: deterministic post-workstream consistency check
+          2h. Update state.json + commit
          ↓
 Phase 3: Reviewer: deep review against spec/plan/tokens/goldens/log
          ↓ fixes/re-review if needed
@@ -159,7 +159,7 @@ See `STITCH_PIPELINE.md` for full documentation.
 │  6. If MATCH: establish permanent golden baseline    │
 │                                                      │
 │  Max iterations: 3 (configurable)                    │
-│  Model: GPT-5.5 (vision-capable)                     │
+│  Model: ui-vision-tier (vision-capable)              │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -167,7 +167,7 @@ See `STITCH_PIPELINE.md` for full documentation.
 
 ## Architecture consistency (New)
 
-The architect agent runs before and after each workstream:
+The deterministic `arch_check.sh` tool runs before and after each workstream; the architect agent explains results when needed:
 
 | Check | What it scans |
 |---|---|
@@ -181,7 +181,7 @@ The architect agent runs before and after each workstream:
 | Golden test coverage | Screen count vs golden test count |
 | Architecture log | Freshness and completeness |
 
-Results: PASS (no issues), WARN (minor), FAIL (significant — ask user before continuing).
+Results: PASS (no issues), WARN (minor), FAIL (significant — autonomy-mode recovery before asking user).
 
 ---
 
@@ -229,9 +229,28 @@ When Stitch mockups are supplied:
 
 ---
 
+## Native acceptance contracts (New)
+
+Every workstream carries a native `pi-subagents` `acceptance` contract emitted by the planner and passed by the orchestrator. It includes:
+
+- `criteria`: observable acceptance criteria from the spec
+- `evidence`: required proof (`changed-files`, `tests-added`, `commands-run`, `validation-output`)
+- `verify`: shell commands (`flutter analyze`, targeted tests, goldens, integration tests)
+- `review`: optional reviewer gate
+- `stopRules` and `maxFinalizationTurns`: bounded self-review/repair loop
+
+This is the primary mechanism for autonomous reliability: a feature-agent cannot claim success until the acceptance contract is satisfied or residual risk is reported.
+
+## Resume and autonomy
+
+- `docs/state.json` is the source of truth for resume (`workstream → status → runId → commit`).
+- The orchestrator uses native `subagent({ action: "status" })` and `subagent({ action: "resume", id })` for async runs.
+- Autonomy mode performs bounded automatic retries and tier escalation before asking the user.
+- Non-blocking clarifications should use intercom/async channels where available.
+
 ## Failure recovery
 
-On workstream failure, the orchestrator does not debug. It asks the user to choose:
+On workstream failure, the orchestrator does not debug. It first applies autonomy-mode recovery. If recovery is exhausted, it asks the user to choose:
 
 1. reset and retry with same model
 2. reset and retry with upgraded model

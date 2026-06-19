@@ -59,6 +59,10 @@ The installer is idempotent and skips existing agents/docs unless specifically d
 │   │   ├── flutter-add-integration-test/    # enhanced
 │   │   ├── flutter-apply-architecture-best-practices/ # enhanced
 │   │   └── official Dart/Flutter skills     # installed per-project via npx
+│   ├── tools/
+│   │   ├── extract_design_tokens.js        # deterministic Stitch HTML → design_tokens.json
+│   │   ├── arch_check.sh                   # deterministic architecture consistency scanner
+│   │   └── golden_check.sh                 # deterministic golden regression pre-filter
 │   └── settings.json
 ├── AGENTS.md              # runtime config template
 ├── FRAMEWORK.md           # pipeline docs
@@ -87,7 +91,7 @@ Project-specific build guides, such as `THE_LITTLE_LIBRARY_BUILD_INSTRUCTIONS.md
 3. Confirm tech stack and architecture rules.
 4. Confirm quality gates.
 5. Place Stitch mockups (screen.png + code.html per screen) in `design-assets/`
-6. Run `design-token-extractor` to generate `design_tokens.json` from Stitch HTML
+6. Run Phase 0 (or `node .pi/tools/extract_design_tokens.js [mockups] [docs/design_tokens.json]`) to generate `design_tokens.json` from Stitch HTML
 
 If anything is missing, the orchestrator will ask at runtime.
 
@@ -126,10 +130,11 @@ Ask me for missing required information.
 
 ```text
 Resolve config → scaffold + design token extraction → planner → user approval
-→ [for each workstream:] architect (pre-check) → feature-agent → gates
-→ [if UI-critical:] visual-validator (render→compare→iterate→fix loop)
+→ [for each workstream:] arch_check.sh (pre) → feature-agent with native acceptance contract
+→ acceptance verify gates (analyze/tests/goldens/integration)
+→ [if UI-critical:] golden_check.sh deterministic pre-filter → visual-validator semantic diff → fix loop
 → golden-test-generator (establish baseline)
-→ reviewer → fixes → final quality gate
+→ arch_check.sh (post) → reviewer → fixes → final quality gate
 ```
 
 Workstream types:
@@ -143,25 +148,22 @@ Workstream types:
 
 ## Model guidance
 
-Defaults favor reliability and visual fidelity:
+The harness is model-agnostic. It uses capability tiers and resolves concrete model IDs on the target machine via `pi --list-models` and/or `.pi/settings.json` `subagents.agentOverrides`.
 
-| Role | Default model | Thinking | Use case |
+| Role | Capability tier | Thinking | Use case |
 |---|---|---|---|
-| Planner | `openai-codex/gpt-5.5` | high | Planning + architecture |
-| Feature-agent (UI-critical) | `openai-codex/gpt-5.5` | high | Screens, widgets, visual fidelity |
-| Feature-agent (logic) | `opencode-go/deepseek-v4-pro` | xhigh | Data, state, sync, complex logic |
-| Feature-agent (simple) | `opencode-go/deepseek-v4-flash` | high | Mechanical fixes, constants, docs |
-| Visual-validator | `openai-codex/gpt-5.5` | high | Vision-based mockup comparison |
-| Architect | `opencode-go/deepseek-v4-flash` | high | Fast pattern scans |
-| Reviewer | `openai-codex/gpt-5.4` | high | Deep spec/plan/tests review |
+| Planner | `planner-tier` | high | Planning + architecture |
+| Feature-agent (UI-critical) | `ui-vision-tier` | high | Screens, widgets, visual fidelity |
+| Feature-agent (logic) | `logic-tier` | xhigh/high | Data, state, sync, complex logic |
+| Feature-agent (simple) | `mechanical-tier` | high | Mechanical fixes, constants, docs |
+| Visual-validator | `ui-vision-tier` | high | Vision-based semantic mockup comparison |
+| Architect | `mechanical-tier` | high | Fast deterministic pattern scans |
+| Reviewer | `review-tier` | high | Deep spec/plan/tests review |
+| Critical escalation | `escalation-tier` | high | Final review / high-risk failures |
 
-The orchestrator should upgrade complex/failing workstreams using the four-model strategy. For `openai-codex/gpt-5.5`, use `high` rather than `xhigh`. For `opencode-go/deepseek-v4-pro` and `opencode-go/deepseek-v4-flash`, use `high` or `xhigh`.
+Concrete IDs are examples only; verify on the target machine. See `MODEL_STRATEGY.md`.
 
-Use Pi `/models` as the source of truth for exact model names and supported thinking levels.
-
-**Removed models (not available / not used):** GPT-5.3-Codex, GPT-5.4-Mini, Kimi K2.6, Qwen3.7 Plus, GLM-5.1.
-
-See `MODEL_STRATEGY.md`.
+For a full end-to-end setup procedure for a new target project, see `NEW_PROJECT_GUIDE.md`.
 
 ---
 

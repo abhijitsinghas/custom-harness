@@ -1,104 +1,137 @@
-# Model Strategy — Four-Model Strategy with Visual Fidelity Tier
+# Model Strategy — Model-Agnostic Capability Tiers (resolved per target machine)
 
-This harness uses exactly four models. No other models should be used for default routing. Visual fidelity tasks are routed to the most capable model.
+> The harness is **model-agnostic**. No agent hardcodes a specific model ID. Instead each
+> agent role is bound to a **capability tier**, and the orchestrator resolves each tier to a
+> concrete model ID **on the target machine** at Phase 0. This keeps the harness portable
+> across machines, providers, and model availability.
 
-## Target Model Set
+## How model resolution works (single source of truth)
 
-1. `openai-codex/gpt-5.5` — Scarce, high-leverage decisions AND visual fidelity. Planner, UI-critical implementation, visual validation, final review, critical escalation.
-2. `openai-codex/gpt-5.4` — Review and precision repair. Default reviewer, non-visual escalation.
-3. `opencode-go/deepseek-v4-pro` — Complex logic implementation. Data, state, sync, offline, auth.
-4. `opencode-go/deepseek-v4-flash` — Mechanical and fast. Simple fixes, golden tests, architecture checks.
+For every agent dispatch the orchestrator resolves the model in this priority order:
 
-## Operating Principle
+1. **Target project `.pi/settings.json` → `subagents.agentOverrides[<agentName>]`**
+   (the native `pi-subagents` per-agent override). If present, use its `model`, `thinking`,
+   and `fallbackModels`. This is the recommended way to pin models per project.
+   Keys are agent names as discovered by `subagent({ action: "list" })`
+   (e.g. `planner`, `feature-agent`, `visual-validator`, `architect`, `reviewer`, or the
+   package-qualified `flutter-dev.<name>` — verify with `action: "list"`).
+2. **Tier default** resolved from `pi --list-models` output by capability match (see tier
+   table below). The orchestrator picks the first available model whose capabilities satisfy
+   the tier.
+3. **`ask_user`** only if both (1) and (2) fail — never guess an ID.
 
-```text
-GPT-5.5 plans, validates visual fidelity, and handles critical milestones.
-GPT-5.4 reviews and repairs.
-DeepSeek V4 Pro builds complex logic.
-DeepSeek V4 Flash cleans up, runs golden tests, and scans patterns.
+Thinking level is encoded as a `:level` suffix on the model string that `pi-subagents` parses
+natively (e.g. `opencode-go/deepseek-v4-pro:xhigh`, `openai-codex/gpt-5.5:high`). The
+orchestrator passes `model` per dispatch (the per-task `model` parameter) so routing is
+dynamic per workstream, not frozen in agent frontmatter.
+
+If a model rejects a thinking level, retry with the highest supported level shown by
+`pi --list-models`. Never assign `xhigh` to a model that only supports `low/medium/high`.
+
+## Capability tiers
+
+| Tier | Use for | Required capability | Thinking | Agents |
+|---|---|---|---|---|
+| `planner-tier` | Planning, architecture judgment, spec→plan decomposition | Strong reasoning; long context | `high` | planner |
+| `ui-vision-tier` | UI-critical implementation + visual mockup comparison | **Vision-capable**; strong coding | `high` | feature-agent (UI-critical), visual-validator |
+| `logic-tier` | Complex non-visual logic: data, state, sync, offline, auth, DB | Strong coding; long context | `xhigh` for complex, `high` for medium | feature-agent (logic/foundation) |
+| `mechanical-tier` | Fast, cheap, deterministic work: golden tests, arch scans, simple widgets, constants, docs | Fast coding model | `high` | feature-agent (simple), architect, golden-test-generator |
+| `review-tier` | Deep review and precision repair against spec/plan/tests/tokens | Strong reasoning; careful | `high` | reviewer |
+| `escalation-tier` | Critical milestones, data-loss risk, final review | Strongest available reasoning (vision optional) | `high` | final review / critical escalation |
+
+## Tier → workstream routing (set by planner, enforced by orchestrator)
+
+| Workstream tier/type | Agent tier | Visual validation | Fixer on failure | Escalation |
+|---|---|---:|---|---|
+| Broad planning / plan critique | planner-tier | N/A | — | same |
+| UI-critical: screens/widgets | ui-vision-tier | YES (ui-vision-tier) | mechanical-tier | escalation-tier re-review |
+| Foundation scaffold | logic-tier (xhigh) | No | mechanical-tier | review-tier |
+| Database/schema/migration | logic-tier (xhigh) | No | review-tier | escalation-tier (data-loss risk only) |
+| Sync/offline/conflicts | logic-tier (xhigh) | No | review-tier | escalation-tier |
+| Auth/routing/state | logic-tier (xhigh) | No | mechanical-tier | review-tier |
+| Complex logic feature | logic-tier (xhigh) | No | mechanical-tier | review-tier |
+| Medium logic feature | logic-tier (high) | No | mechanical-tier | review-tier |
+| Simple widget/constants/docs | mechanical-tier (high) | No | logic-tier (high) | review-tier |
+| Integration/E2E tests | logic-tier (high) | No | mechanical-tier | review-tier |
+| Golden test generation | mechanical-tier (high) | No | logic-tier (high) | review-tier |
+| Architecture consistency scan | mechanical-tier (high) | N/A | — | — |
+| Normal review | review-tier (high) | N/A | N/A | escalation-tier |
+| Final review | escalation-tier (high) | N/A | N/A | same |
+
+## Tier capability matching (for `pi --list-models` selection)
+
+When resolving a tier default, the orchestrator matches model capabilities (from `/models`):
+
+| Tier | Must have | Prefer |
+|---|---|---|
+| `planner-tier` | reasoning supported; context ≥ 128k | highest reasoning |
+| `ui-vision-tier` | **vision/image input supported**; reasoning | — |
+| `logic-tier` | reasoning; context ≥ 128k | high output limit |
+| `mechanical-tier` | fast/cheap; any coding model | lowest cost |
+| `review-tier` | reasoning; careful | — |
+| `escalation-tier` | strongest reasoning | vision optional |
+
+If no vision-capable model is available on the machine, the orchestrator must ask the user
+before any UI-critical dispatch — visual validation is impossible without vision.
+
+## Example `.pi/settings.json` (target project — edit per machine)
+
+Concrete IDs below are **examples only**. Verify with `pi --list-models` and replace with IDs
+that resolve on your machine. This is the recommended per-project pin.
+
+```json
+{
+  "subagents": {
+    "agentOverrides": {
+      "planner":            { "model": "openai-codex/gpt-5.5",    "thinking": "high",  "fallbackModels": ["openai-codex/gpt-5.4"] },
+      "feature-agent":      { "model": "opencode-go/deepseek-v4-pro", "thinking": "xhigh", "fallbackModels": ["opencode-go/deepseek-v4-flash"] },
+      "visual-validator":   { "model": "openai-codex/gpt-5.5",    "thinking": "high",  "fallbackModels": [] },
+      "architect":          { "model": "opencode-go/deepseek-v4-flash", "thinking": "high", "fallbackModels": [] },
+      "reviewer":           { "model": "openai-codex/gpt-5.4",    "thinking": "high",  "fallbackModels": ["openai-codex/gpt-5.5"] }
+    }
+  }
+}
 ```
 
-## Thinking-Level Compatibility
+> Note: for UI-critical workstreams the orchestrator overrides the feature-agent's default with
+> a `ui-vision-tier` model per dispatch (see routing table). So `feature-agent`'s override
+> above is the *logic-tier* default; the orchestrator passes the vision model explicitly for
+> UI-critical dispatches.
 
-Use Pi `/models` or `pi --list-models` as the final source of truth. Current constraints:
-
-| Model | Allowed thinking levels | Default | Notes |
-|---|---|---:|---|
-| `openai-codex/gpt-5.5` | `low`, `medium`, `high` | `high` | Never use `xhigh`. Used for UI-critical and visual tasks. |
-| `openai-codex/gpt-5.4` | `low`, `medium`, `high` if shown by `/models` | `high` | Reviewer and precision repair |
-| `opencode-go/deepseek-v4-pro` | `high`, `xhigh` | `xhigh` for complex, `high` for normal | Complex logic implementer |
-| `opencode-go/deepseek-v4-flash` | `high`, `xhigh` | `high` | Cheap mechanical: golden tests, architect scans, simple widgets |
-
-If a model rejects a thinking level, retry with the highest supported level shown by `/models`.
-
-## Agent Defaults
-
-| Agent | Default model | Thinking | Rationale |
-|---|---|---:|---|
-| orchestrator skill | no fixed model | high | Procedure; dispatches, asks, gates |
-| planner | `openai-codex/gpt-5.5` | high | Strongest planning/architecture judgment; no xhigh |
-| feature-agent (UI-critical) | `openai-codex/gpt-5.5` | high | UI requires visual reasoning capability |
-| feature-agent (logic) | `opencode-go/deepseek-v4-pro` | xhigh | High-volume complex logic implementation |
-| feature-agent (simple) | `opencode-go/deepseek-v4-flash` | high | Fast, cheap for mechanical work |
-| visual-validator | `openai-codex/gpt-5.5` | high | Vision capability needed for mockup comparison |
-| architect | `opencode-go/deepseek-v4-flash` | high | Fast mechanical pattern scans |
-| reviewer | `openai-codex/gpt-5.4` | high | Preserves GPT-5.5 quota; runs frequently |
-
-## Updated Workstream Tier Mapping
-
-| Workstream tier/type | First attempt | Thinking | Visual Validator | Fixer | Escalation |
-|---|---|---|---:|---:|---:|
-| Broad planning / plan critique | `openai-codex/gpt-5.5` | high | N/A | N/A | same |
-| Huge codebase consistency scan | `opencode-go/deepseek-v4-pro` | xhigh | N/A | N/A | `openai-codex/gpt-5.5:high` for critique |
-| UI-critical: screens/widgets | `openai-codex/gpt-5.5` | high | `openai-codex/gpt-5.5:high` (vision) | — | `openai-codex/gpt-5.5:high` re-review |
-| Foundation scaffold | `opencode-go/deepseek-v4-pro` | xhigh | — | `opencode-go/deepseek-v4-flash:high` | `openai-codex/gpt-5.4:high` |
-| Database/schema/migration | `opencode-go/deepseek-v4-pro` | xhigh | — | `openai-codex/gpt-5.4:high` | `openai-codex/gpt-5.5:high` only for data-loss risk |
-| Sync/offline/conflicts | `opencode-go/deepseek-v4-pro` | xhigh | — | `openai-codex/gpt-5.4:high` | `openai-codex/gpt-5.5:high` |
-| Auth/routing/state | `opencode-go/deepseek-v4-pro` | xhigh | — | `opencode-go/deepseek-v4-flash:high` | `openai-codex/gpt-5.4:high` |
-| Complex logic feature | `opencode-go/deepseek-v4-pro` | xhigh | — | `opencode-go/deepseek-v4-flash:high` | `openai-codex/gpt-5.4:high` |
-| Medium feature (logic) | `opencode-go/deepseek-v4-pro` | high | — | `opencode-go/deepseek-v4-flash:high` | `openai-codex/gpt-5.4:high` |
-| Simple widget/constants/docs | `opencode-go/deepseek-v4-flash` | high | — | `opencode-go/deepseek-v4-pro:high` | `openai-codex/gpt-5.4:high` |
-| Integration/E2E tests | `opencode-go/deepseek-v4-pro` | high | — | `opencode-go/deepseek-v4-flash:high` | `openai-codex/gpt-5.4:high` |
-| Golden test generation | `opencode-go/deepseek-v4-flash` | high | — | `opencode-go/deepseek-v4-pro:high` | `openai-codex/gpt-5.4:high` |
-| Architecture consistency scan | `opencode-go/deepseek-v4-flash` | high | — | — | — |
-| Normal review | `openai-codex/gpt-5.4` | high | N/A | N/A | `openai-codex/gpt-5.5:high` |
-| Final review | `openai-codex/gpt-5.5` | high | N/A | N/A | same |
-
-## UI-Critical Workstream Identification
-
-A workstream is UI-critical if the planner marks it as such. Criteria:
-- Creates or significantly modifies a screen widget (`*_screen.dart`, `*_page.dart`)
-- Creates or modifies a shared UI component (`widgets/` directory)
-- Implements a visual layout from a Stitch mockup
-
-The orchestrator routes UI-critical workstreams to GPT-5.5 and triggers the visual validation phase after implementation.
-
-## Failure Escalation Ladder
+## Failure escalation ladders
 
 ```text
 Logic failure:
-  Attempt 1: DeepSeek V4 Pro xhigh/high
-  → Mechanical fix: DeepSeek V4 Flash high
-  → Repeated failure: GPT-5.4 high
-  → Critical: GPT-5.5 high
+  Attempt 1: logic-tier (xhigh/high)
+  → mechanical-tier fix attempt
+  → repeated failure: review-tier
+  → critical (data-loss/auth/boot-blocker/release-gate): escalation-tier
 
 Visual failure (discrepancies not resolved):
-  Attempts 1-3: GPT-5.5 (feature-agent) + GPT-5.5 (visual-validator) loop
-  → Max iterations reached: present to user
+  Attempts 1..N (default 3): ui-vision-tier feature-agent + ui-vision-tier visual-validator loop
+  → max iterations reached: present to user (autonomy mode may auto-accept minor diffs — see AGENTS.md)
 
 Architecture check failure:
-  WARN: report to user, continue
-  FAIL: block pipeline, ask user
+  WARN: log to state.json, continue
+  FAIL: block pipeline, apply autonomy-mode recovery before asking user
 ```
 
-Critical repeated failure means: data loss risk, unsafe database migration, broken sync/conflict resolution, auth/session security issue, routing loop or app boot blocker, duplicate detector correctness remains suspect, scan/OCR architecture is unstable, final release gate failure after GPT-5.4 repair.
+Critical repeated failure means: data loss risk, unsafe DB migration, broken sync/conflict
+resolution, auth/session security issue, routing loop or app boot blocker, duplicate-detector
+correctness suspect, scan/OCR architecture unstable, or final release gate failure after
+review-tier repair.
 
-## Operational Notes
+## Operational notes
 
-- Run `/models` in Pi before a major project to confirm exact model names and supported thinking.
-- If a selected model rejects a thinking level, retry with the highest supported level from the compatibility table above.
-- Do not assign `xhigh` to GPT-5.5.
-- UI-critical work requires GPT-5.5 for visual reasoning capability. Do not route screens/widgets to DeepSeek.
-- The visual-validator MUST use GPT-5.5 — it needs vision to compare goldens against mockups.
-- Golden test generation and architecture scans are mechanical — use DeepSeek V4 Flash for cost efficiency.
-- Do not use GPT-5.3-Codex, GPT-5.4-Mini, Kimi K2.6, Qwen3.7 Plus, GLM-5.1, MiniMax, or MiMo unless the user explicitly overrides this four-model policy.
+- Run `pi --list-models` at Phase 0 and cache the result for the session.
+- The orchestrator passes `model` (and `acceptance`, `context`, `output`, `reads`) per
+  `subagent()` dispatch — do not rely on agent frontmatter to carry the model.
+- If a selected model rejects a thinking level, retry with the highest supported level from
+  `/models`.
+- Do not assign `xhigh` to a model that does not support it.
+- UI-critical work requires a vision-capable model. Do not route screens/widgets to a
+  non-vision model.
+- Golden test generation and architecture scans are mechanical — use the mechanical-tier for
+  cost efficiency.
+- Do not use models outside the resolved set unless the user explicitly overrides via
+  `subagents.agentOverrides`.

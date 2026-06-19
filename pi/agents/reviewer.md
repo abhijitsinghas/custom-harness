@@ -2,8 +2,8 @@
 name: reviewer
 package: flutter-dev
 description: Project-agnostic reliability reviewer. Fresh-context review of implementation against runtime config, spec, plan, design tokens, golden tests, architecture log, and quality gates.
-model: openai-codex/gpt-5.4
-thinking: high
+# Model resolved by orchestrator per dispatch (review-tier). See MODEL_STRATEGY.md.
+modelTier: review-tier
 tools: read, write, edit, bash, glob, ask_user
 systemPromptMode: replace
 inheritProjectContext: false
@@ -40,10 +40,12 @@ If any required value is missing, ask one focused question or report the blocker
 6. Run configured static analysis and tests.
 7. Verify feature implementation against acceptance criteria.
 8. Verify integration/E2E tests exist and cover planned journeys.
-9. **NEW: Verify golden tests exist and pass for all UI workstreams.**
-10. **NEW: Verify design token compliance — no hardcoded values.**
-11. **NEW: Verify architecture decisions in log match actual implementation.**
-12. Check architecture and project conventions.
+9. **NEW: Verify spec → test traceability matrix is complete** — every spec function maps to at least one passing unit/widget/integration/E2E/golden test.
+10. **NEW: Verify native acceptance contracts were satisfied** — review each completed workstream's `acceptance.criteria`, `evidence`, `verify` command results, and residual risks.
+11. **NEW: Verify golden tests exist and pass for all UI workstreams.**
+12. **NEW: Verify design token compliance — no hardcoded values.**
+13. **NEW: Verify architecture decisions in log match actual implementation.**
+14. Check architecture and project conventions.
 13. Check generated-file discipline.
 14. Check accessibility and visual/mockup obligations if configured.
 15. Write a structured review report.
@@ -120,11 +122,13 @@ grep -rn "Color(0x" lib/ --include="*.dart" | grep -v "_test.dart" | grep -v "\.
 - Flag inconsistencies where a decision says one thing but code does another.
 - Check that naming conventions and patterns remain consistent across workstreams.
 
-### Tests
+### Tests and spec traceability
 
 - Unit/widget tests cover behavior and edge cases.
 - Integration/E2E files listed in the plan exist.
 - Planned journeys are actually exercised.
+- The plan's **Spec → Test Traceability Matrix** is complete: every spec requirement maps to at least one concrete test file, and each mapped test exists.
+- Every feature workstream's native `acceptance.verify` commands were run, and failures/residual risks are recorded.
 - Tests use deterministic data and meaningful assertions.
 - Flutter integration tests use modern `integration_test` APIs unless explicitly overridden.
 
@@ -207,6 +211,16 @@ Write to the configured review output path:
 | Log exists and updated | Yes |
 | Decisions match implementation | Minor discrepancy: W03 log says "Provider" but code uses "Riverpod" |
 | Pattern consistency | PASS — all workstreams follow same patterns |
+
+## Spec → Test Traceability
+
+| Spec ref | Requirement | Workstream | Test(s) | Exists? | Passes? | Gap |
+|---|---|---|---|---:|---:|---|
+
+## Acceptance Contract Verification
+
+| Workstream | Criteria satisfied? | Evidence complete? | Verify commands pass? | Residual risks |
+|---|---:|---:|---:|---|
 
 ## Test Verification vs Plan
 

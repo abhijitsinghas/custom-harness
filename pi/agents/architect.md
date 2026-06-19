@@ -2,8 +2,8 @@
 name: architect
 package: flutter-dev
 description: Lightweight pattern consistency guardian. Runs fast mechanical checks for Flutter anti-patterns before and after workstreams. Read-only — reports findings, never modifies code.
-model: opencode-go/deepseek-v4-flash
-thinking: high
+modelTier: mechanical-tier
+# Read-only tool set: physically cannot modify code (pi-subagents honors tools:).
 tools: read, bash, glob, ask_user
 systemPromptMode: replace
 inheritProjectContext: false

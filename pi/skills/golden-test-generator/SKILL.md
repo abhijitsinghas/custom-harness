@@ -28,13 +28,17 @@ Before generating golden tests:
 
 ## Process
 
-### Step 1: Identify the widget
+### Step 1: Identify the widget and rendering contract
 
 From the assigned workstream or task input, identify:
 - The widget class name
 - The screen/widget file path
+- The matching Stitch `screen.png` mockup path
+- The mockup logical viewport/aspect ratio to render (e.g. 390×844 mobile portrait)
 - Whether it needs light mode, dark mode, or both
 - Whether any provider/theme overrides are needed
+- Which fonts/icons/assets must be loaded for deterministic rendering
+- Which network images must be replaced with deterministic local stubs/placeholders
 
 ### Step 2: Create the golden test file
 
@@ -49,8 +53,20 @@ import 'package:APP_PACKAGE/core/app_theme.dart';
 import 'package:APP_PACKAGE/features/FEATURE_PATH/widget_file.dart';
 
 void main() {
+  setUpAll(() async {
+    // Load production fonts/icons/assets here for deterministic goldens.
+    // Example:
+    // final fontLoader = FontLoader('Inter')..addFont(rootBundle.load('assets/fonts/Inter-Regular.ttf'));
+    // await fontLoader.load();
+  });
+
   group('${WidgetName} golden tests', () {
     testWidgets('renders correctly in light mode', (tester) async {
+      tester.view.physicalSize = const Size(390, 844); // match Stitch mockup viewport
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
@@ -123,17 +139,20 @@ Produce a summary:
 
 - **Source mockups (Stitch screen.png) are IMMUTABLE** — never use as golden inputs
 - **Golden PNGs go in `test/goldens/`** — separate from source mockup directory
-- **After visual-validator confirms parity**, delete the throwaway golden (created during iteration) and re-run golden test to establish the permanent baseline
+- **After visual-validator confirms parity**, commit the generated golden as the permanent baseline
 - **Goldens should be committed** to version control as they are part of CI
 - **CI runs golden tests WITHOUT `--update-goldens`** flag — they detect regressions
 - **Golden tests need deterministic test data** — use fixed test books, fixed test locations, no random content
+- **Viewport must match mockup** — set `tester.view.physicalSize` / `devicePixelRatio` to match the Stitch screen aspect ratio before rendering
+- **Fonts/icons/assets must be loaded** — use `FontLoader`/asset bundles so typography and icons match production across machines
+- **No network images** — replace remote image widgets with local asset stubs/placeholders with the same aspect ratio
 - Use `tester.pumpAndSettle()` for async screens; add `Duration(seconds: 2)` timeout if needed
 
 ## Anti-patterns
 
 - Do NOT overwrite `design-assets/` mockup files with golden outputs
 - Do NOT run `--update-goldens` in CI (detection of regressions is the goal)
-- Do NOT use network images in goldens (use asset stubs or local test images)
+- Do NOT use network images in goldens (use asset stubs or local test images with matching dimensions/aspect ratio)
 - Do NOT skip golden tests for UI-critical screens without explicit user approval
 
 ## Failure handling

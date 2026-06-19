@@ -16,8 +16,8 @@
             │
             ▼
 ┌──────────────────────────┐
-│  design-token-extractor  │  ← harness skill
-│  (uses stitch-html-parser)│
+│ extract_design_tokens.js │  ← deterministic harness tool
+│ + design-token-extractor │  ← semantic enhancement skill
 │  1. Parse all code.html   │
 │  2. Extract tailwind.config│
 │  3. Merge + resolve conflicts│
@@ -100,14 +100,15 @@ Recommended layout:
 | Golden test source | `[app_dir]/test_goldens/` |
 ```
 
-### 3. Run the extractor
+### 3. Run deterministic extraction
 
-During Phase 0 of the pipeline, the orchestrator dispatches the `design-token-extractor` skill. This can also be run manually:
+During Phase 0, the orchestrator runs the shipped deterministic script first:
 
-```text
-Extract design tokens from Stitch mockups at design-assets/Stitch-Mockup/.
-Write output to docs/design_tokens.json.
+```bash
+node .pi/tools/extract_design_tokens.js design-assets/Stitch-Mockup/ docs/design_tokens.json
 ```
+
+The `design-token-extractor` skill may then semantically enhance the generated JSON (component naming, warnings, design-doc cross-reference), but it should not improvise the base parsing if the script is available.
 
 ## How Agents Use design_tokens.json
 
