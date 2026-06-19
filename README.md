@@ -122,6 +122,192 @@ docs/state.json, and any needed docs/config files for me.
 
 ---
 
+## Example: create a new "Home Library" app
+
+This example shows the intended minimal manual flow.
+
+### 1. Create the target folder
+
+```bash
+mkdir -p ~/Development/Projects/home-library-app
+cd ~/Development/Projects/home-library-app
+```
+
+### 2. Copy project inputs into the folder
+
+Example target structure after copying inputs:
+
+```text
+home-library-app/
+├── docs/
+│   ├── SPEC.md
+│   ├── user-stories.md
+│   └── design.md
+├── design-assets/
+│   └── Stitch-Mockup/
+│       ├── 01-welcome/
+│       │   ├── screen.png
+│       │   └── code.html
+│       ├── 02-catalog/
+│       │   ├── screen.png
+│       │   └── code.html
+│       └── 03-book-detail/
+│           ├── screen.png
+│           └── code.html
+└── generated/
+    └── optional-reference-files/
+```
+
+You can copy files manually in Finder, or use commands such as:
+
+```bash
+mkdir -p docs design-assets
+cp ~/Downloads/home-library/SPEC.md docs/SPEC.md
+cp ~/Downloads/home-library/user-stories.md docs/user-stories.md
+cp ~/Downloads/home-library/design.md docs/design.md
+cp -R ~/Downloads/home-library/Stitch-Mockup design-assets/
+```
+
+### 3. Install the harness
+
+```bash
+bash /Users/abhijitsingh/Development/Projects/pi-workspace/research/custom-harness/install.sh
+```
+
+After install, the target folder contains `.pi/agents`, `.pi/skills`, `.pi/tools`, `AGENTS.md`, and framework docs.
+
+### 4. Start Pi
+
+```bash
+pi
+```
+
+Then in Pi:
+
+```text
+/name orchestrator
+```
+
+### 5. Start onboarding
+
+Paste:
+
+```text
+Orchestrator, onboard this new Flutter Android project and begin Phase 0.
+I have copied the available specs, mockups, plans, and artifacts into this project directory.
+Discover them, ask me one question at a time for every missing or ambiguous value,
+do not assume missing project details, and write AGENTS.md, .pi/settings.json,
+docs/state.json, and any needed docs/config files for me.
+```
+
+### 6. Example questions the orchestrator may ask
+
+```text
+I found docs/SPEC.md. Should I use this as the product spec?
+```
+
+Answer:
+
+```text
+Yes.
+```
+
+```text
+I found design-assets/Stitch-Mockup with Stitch screens containing screen.png and code.html.
+Use this for mockups and design-token extraction?
+```
+
+Answer:
+
+```text
+Yes.
+```
+
+```text
+What Android package id should I use?
+```
+
+Answer:
+
+```text
+com.yourname.homelibrary
+```
+
+```text
+Which state management package should we use?
+Options: Riverpod, Bloc, Provider, other
+```
+
+Answer:
+
+```text
+Riverpod.
+```
+
+It may also ask you to choose available models for capability tiers. Pick a vision-capable model for `ui-vision-tier`.
+
+### 7. What the orchestrator should create/update
+
+```text
+AGENTS.md
+.pi/settings.json
+docs/state.json
+docs/ARCHITECTURE_LOG.md
+docs/design_tokens.json
+docs/plan.md
+docs/review.md
+```
+
+It should also run Phase 0 checks such as:
+
+```bash
+flutter doctor -v
+node .pi/tools/extract_design_tokens.js design-assets/Stitch-Mockup docs/design_tokens.json
+```
+
+If the Flutter app does not exist yet, it should ask permission/defaults and run something like:
+
+```bash
+flutter create app --platforms android --org com.yourname
+```
+
+### 8. Review and approve the generated plan
+
+The orchestrator should summarize `docs/plan.md`, including:
+
+- workstreams
+- UI-critical screens
+- acceptance contracts
+- Spec → Test Traceability Matrix
+- golden test plan
+- integration test plan
+
+If it looks correct, respond:
+
+```text
+Approved. Proceed with implementation.
+```
+
+### 9. Let it run workstreams
+
+For each workstream, the orchestrator should run checks, implement, test, visually validate UI, update `docs/state.json`, and commit.
+
+### 10. Resume later if needed
+
+```bash
+cd ~/Development/Projects/home-library-app
+pi
+```
+
+Then:
+
+```text
+/name orchestrator
+Resume from docs/state.json. Check subagent status and continue from the first non-passed workstream.
+```
+
+---
+
 ## Pipeline summary
 
 ```text
