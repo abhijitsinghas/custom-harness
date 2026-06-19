@@ -1,6 +1,6 @@
 ---
 name: architecture-consistency-checker
-description: Fast mechanical pattern scan before and after workstream execution. Checks for common Flutter anti-patterns: print() in production code, bare null assertions, missing dispose(), dynamic misuse, setState overreach.
+description: "Fast mechanical pattern scan before and after workstream execution. Checks for common Flutter anti-patterns: print() in production code, bare null assertions, missing dispose(), dynamic misuse, setState overreach."
 metadata:
   model: models/gemini-3.1-pro-preview
   last_modified: 2026-06-19
