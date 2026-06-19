@@ -78,17 +78,19 @@ tables. You own onboarding.
 Read `AGENTS.md` if present. If it is missing, still contains template placeholders like
 `[REQUIRED]`, or lacks required values, enter **onboarding mode**:
 
-1. Ask exactly one focused question at a time via `ask_user`.
-2. Collect all required project identity, paths, specs, mockups, architecture choices, quality
-   gates, autonomy preference, and model-tier selections.
-3. If the user has a file, ask for its path. If the user wants to paste content, write it to
-   the appropriate file (for example `docs/SPEC.md`). If the user does not have a value yet,
-   create a placeholder file and mark it as a blocker before planning.
-4. Create directories as needed: `docs/`, `design-assets/`, `[APP_DIR]/`, etc.
-5. Write/update `AGENTS.md` with the collected answers.
-6. Write/update `.pi/settings.json` `subagents.agentOverrides` after model selection.
-7. Create `docs/state.json` and `docs/ARCHITECTURE_LOG.md` if missing.
-8. Present a concise summary of the generated config and ask for approval before Phase 0 gates
+1. First scan the target directory for copied project inputs before asking questions.
+2. Ask exactly one focused question at a time via `ask_user` for missing or ambiguous values.
+3. Collect all required project identity, paths, specs, mockups, existing plans, architecture
+   choices, quality gates, autonomy preference, and model-tier selections.
+4. If the user has a file, ask for its path only when discovery did not find an obvious
+   candidate. If the user wants to paste content, write it to the appropriate file (for
+   example `docs/SPEC.md`). If the user does not have a value yet, create a placeholder file
+   and mark it as a blocker before planning.
+5. Create directories as needed: `docs/`, `design-assets/`, `[APP_DIR]/`, etc.
+6. Write/update `AGENTS.md` with the collected answers.
+7. Write/update `.pi/settings.json` `subagents.agentOverrides` after model selection.
+8. Create `docs/state.json` and `docs/ARCHITECTURE_LOG.md` if missing.
+9. Present a concise summary of the generated config and ask for approval before Phase 0 gates
    (unless `AUTONOMY_MODE=true`).
 
 You may write configuration/runtime files during onboarding. You still must not implement app
@@ -122,6 +124,31 @@ Resolve these values:
 | **NEW:** `MAX_AUTO_RETRIES` | No | `2` (retries before asking the user) |
 
 Ask for missing required values with `ask_user`. Do not combine unrelated questions.
+
+### Onboarding discovery pass
+
+Before asking path questions, scan common input locations and present candidates:
+
+```bash
+find . -maxdepth 4 \( \
+  -iname "*spec*.md" -o -iname "*requirements*.md" -o -iname "*user-stor*.md" -o \
+  -iname "*design*.md" -o -iname "*plan*.md" -o -iname "code.html" -o -iname "screen.png" \
+\) | sort
+find . -maxdepth 3 -type d \( -iname "*mockup*" -o -iname "*stitch*" -o -iname "design-assets" -o -iname "generated" \) | sort
+```
+
+Use discovered files as defaults:
+
+- Spec: prefer `docs/SPEC.md`, then `SPEC.md`, then best `*spec*.md` match.
+- User stories: prefer `docs/user-stories.md`, then best `*user-stor*.md` match.
+- Design docs: prefer `docs/design.md`, then best `*design*.md` match.
+- Existing plans: collect `*plan*.md` as reference inputs; do not assume they are approved.
+- Stitch mockups: identify the nearest parent directory containing multiple `code.html` +
+  `screen.png` pairs.
+- Generated/reference artifacts: detect `generated/` and ask if they should be used.
+
+If multiple candidates exist, ask the user to choose. If none exist, ask whether to paste
+content, provide a path, or create a placeholder.
 
 ## Step 1a — Resolve models (model-agnostic, per `MODEL_STRATEGY.md`)
 

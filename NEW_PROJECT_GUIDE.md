@@ -1,8 +1,10 @@
 # New Project Guide — Minimal Manual Setup
 
-> Desired flow: the user creates a target directory and runs the harness installer. After that,
-> the AI/orchestrator asks questions, writes configuration, prepares paths, generates design
-> tokens, plans workstreams, and runs the reliability pipeline.
+> Desired flow: the user creates a target directory, copies available project inputs into it
+> (specs, UI mockups, existing plans, generated artifacts, etc.), and runs the harness
+> installer. After that, the AI/orchestrator discovers those files, asks questions for missing
+> information, writes configuration, prepares paths, generates design tokens, plans
+> workstreams, and runs the reliability pipeline.
 
 ---
 
@@ -13,8 +15,41 @@ The user should manually do only this:
 ```bash
 mkdir -p ~/Development/Projects/my_flutter_app
 cd ~/Development/Projects/my_flutter_app
+
+# Copy all available project inputs into this directory now.
+# Examples:
+#   docs/SPEC.md
+#   docs/user-stories.md
+#   docs/design.md
+#   design-assets/Stitch-Mockup/<screen>/screen.png
+#   design-assets/Stitch-Mockup/<screen>/code.html
+#   existing-plan.md or docs/plan-draft.md
+#   generated/ or existing source artifacts
+
 bash /path/to/custom-harness/install.sh
 ```
+
+Recommended input layout before/after install:
+
+```text
+my_flutter_app/
+├── docs/
+│   ├── SPEC.md                  # required, or orchestrator will ask/pause
+│   ├── user-stories.md          # optional
+│   ├── design.md                # optional
+│   └── plan-draft.md            # optional existing plan/reference
+├── design-assets/
+│   └── Stitch-Mockup/
+│       ├── 01-screen/
+│       │   ├── screen.png
+│       │   └── code.html
+│       └── ...
+├── generated/                   # optional generated/reference artifacts
+└── app/                         # optional existing Flutter app, or created by orchestrator
+```
+
+It is OK if some inputs are missing. The orchestrator will ask for missing required values or
+create placeholders when appropriate.
 
 Then start Pi in the target project and launch onboarding:
 
@@ -32,9 +67,10 @@ Then:
 
 ```text
 Orchestrator, onboard this new Flutter Android project and begin Phase 0.
-Ask me one question at a time for every required value.
-Do not assume missing project details.
-Write AGENTS.md, .pi/settings.json, docs/state.json, and any needed docs/config files for me.
+I have copied the available specs, mockups, plans, and artifacts into this project directory.
+Discover them, ask me one question at a time for every missing or ambiguous value,
+do not assume missing project details, and write AGENTS.md, .pi/settings.json,
+docs/state.json, and any needed docs/config files for me.
 ```
 
 After this point, **do not manually edit `AGENTS.md`, `.pi/settings.json`, or path tables unless
@@ -59,32 +95,58 @@ Ask one question at a time:
 
 If the user does not know a value, offer safe examples and explain the impact.
 
-### 2. Collect specs and requirements
+### 2. Discover and collect specs, plans, and requirements
 
-Ask how the spec will be provided:
+First scan the target directory for likely inputs before asking:
 
-- path to an existing spec file
-- paste spec content now
+```text
+docs/SPEC.md
+SPEC.md
+docs/user-stories.md
+user-stories.md
+docs/design.md
+design.md
+docs/*plan*.md
+*plan*.md
+generated/
+```
+
+Then ask how to handle anything missing or ambiguous:
+
+- use an existing discovered spec file
+- choose among multiple candidate spec files
+- paste spec content now and write it to `docs/SPEC.md`
 - create a placeholder `docs/SPEC.md` and pause until user fills/provides it
-
-If user pastes content, write it to `docs/SPEC.md`.
 
 Ask similarly for optional:
 
 - user stories
 - design system notes
+- existing implementation plan / draft plan
 - build instructions
 - generated artifacts / existing code
 
-### 3. Collect mockups/design inputs
+Do not require the user to manually edit `AGENTS.md`; write the selected paths into it.
 
-Ask whether UI mockups exist:
+### 3. Discover and collect mockups/design inputs
+
+First scan for likely mockup folders:
+
+```text
+design-assets/
+mockups/
+ui-mockups/
+*/Stitch-Mockup/
+*/stitch*/
+```
+
+Ask whether UI mockups exist only after presenting discovered candidates:
 
 - Stitch export folder with `screen.png` + `code.html`
 - screenshots only
 - no mockups yet
 
-If Stitch exists, ask for the folder path and set:
+If Stitch exists, ask the user to confirm the folder path and set:
 
 ```text
 Mockups/screenshots = [that path]
@@ -237,9 +299,10 @@ flutter build apk --debug
 
 ```text
 Orchestrator, onboard this new Flutter Android project and begin Phase 0.
-Ask me one question at a time for every required value.
-Do not assume missing project details.
-Write AGENTS.md, .pi/settings.json, docs/state.json, and any needed docs/config files for me.
+I have copied the available specs, mockups, plans, and artifacts into this project directory.
+Discover them, ask me one question at a time for every missing or ambiguous value,
+do not assume missing project details, and write AGENTS.md, .pi/settings.json,
+docs/state.json, and any needed docs/config files for me.
 ```
 
 ---

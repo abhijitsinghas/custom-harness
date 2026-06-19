@@ -77,16 +77,23 @@ Project-specific build guides, such as `THE_LITTLE_LIBRARY_BUILD_INSTRUCTIONS.md
 
 ## Required project setup after install
 
-Do **not** manually edit `AGENTS.md` or `.pi/settings.json` for a new project. After install,
-start the orchestrator onboarding flow. The AI will ask one question at a time, collect the
-needed values, write `AGENTS.md`, write `.pi/settings.json` model overrides, create
-`docs/state.json`, and run Phase 0.
+Do **not** manually edit `AGENTS.md` or `.pi/settings.json` for a new project. The intended
+manual flow is:
 
-The only manual setup is:
+1. Create the target directory.
+2. Copy all available project inputs into it — specs, UI mockups, existing plans, generated
+   artifacts, reference code, etc.
+3. Run the install script.
+4. Start the orchestrator onboarding flow.
+
+The AI will discover those files, ask one question at a time for anything missing or
+ambiguous, write `AGENTS.md`, write `.pi/settings.json` model overrides, create
+`docs/state.json`, and run Phase 0.
 
 ```bash
 mkdir -p /path/to/target-project
 cd /path/to/target-project
+# Copy specs/mockups/plans/artifacts here now.
 bash /path/to/custom-harness/install.sh
 pi
 ```
@@ -107,9 +114,10 @@ Then:
 
 ```text
 Orchestrator, onboard this new Flutter Android project and begin Phase 0.
-Ask me one question at a time for every required value.
-Do not assume missing project details.
-Write AGENTS.md, .pi/settings.json, docs/state.json, and any needed docs/config files for me.
+I have copied the available specs, mockups, plans, and artifacts into this project directory.
+Discover them, ask me one question at a time for every missing or ambiguous value,
+do not assume missing project details, and write AGENTS.md, .pi/settings.json,
+docs/state.json, and any needed docs/config files for me.
 ```
 
 ---

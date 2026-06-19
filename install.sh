@@ -552,10 +552,11 @@ print_summary() {
   fi
 
   echo "  ${BOLD}Next steps:${NC}"
-  echo "    1. Start Pi in this project: ${CYAN}pi${NC}"
-  echo "    2. Run: ${CYAN}/name orchestrator${NC}"
-  echo "    3. Say: ${CYAN}Orchestrator, onboard this new Flutter Android project and begin Phase 0. Ask me one question at a time and write AGENTS.md, .pi/settings.json, and docs/state.json for me.${NC}"
-  echo "    4. Do not manually edit AGENTS.md or .pi/settings.json unless the orchestrator asks you to review a proposed change."
+  echo "    1. If you have not already done so, copy specs/mockups/plans/artifacts into this project directory."
+  echo "    2. Start Pi in this project: ${CYAN}pi${NC}"
+  echo "    3. Run: ${CYAN}/name orchestrator${NC}"
+  echo "    4. Say: ${CYAN}Orchestrator, onboard this new Flutter Android project and begin Phase 0. I have copied the available specs, mockups, plans, and artifacts into this project directory. Discover them, ask me one question at a time, and write AGENTS.md, .pi/settings.json, and docs/state.json for me.${NC}"
+  echo "    5. Do not manually edit AGENTS.md or .pi/settings.json unless the orchestrator asks you to review a proposed change."
   echo ""
 }
 
