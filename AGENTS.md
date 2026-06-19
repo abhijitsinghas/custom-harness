@@ -1,11 +1,11 @@
 # AGENTS.md — Project Runtime Configuration Template
 
-> This file is intentionally **project-agnostic**. Copy/edit it in the target project after installing the harness. The orchestrator and agents must treat this as runtime configuration, not hardcoded product knowledge.
+> This file is intentionally **project-agnostic**. For new projects, the user should not manually edit it. The orchestrator onboarding flow asks the user questions and writes/updates this file. Agents must treat it as runtime configuration, not hardcoded product knowledge.
 
 ## How agents should use this file
 
 - Read this file first.
-- If a required value is missing, ask the user exactly one focused question via `ask_user`.
+- If a required value is missing, the orchestrator asks the user exactly one focused question via `ask_user` and writes the answer back to this file.
 - Do not assume product-specific paths, package names, features, tech stack, or design artifacts.
 - Prefer values passed in the orchestrator start prompt over values in this template.
 - Keep implementation constrained to the configured app directory.

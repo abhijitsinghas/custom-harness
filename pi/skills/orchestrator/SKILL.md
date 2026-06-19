@@ -69,9 +69,32 @@ git log --oneline -n 20
 - Dirty tree: in autonomy mode, stash-or-commit a recovery checkpoint then resume; interactively, ask whether to resume in-place or reset.
 - Not a git repo: initialize git (autonomy mode: auto-init). Reliability-first default is to require git.
 
-## Step 1 — Resolve runtime configuration
+## Step 1 — Onboard and resolve runtime configuration
 
-Read `AGENTS.md` if present. Then resolve these values:
+**Default new-project behavior:** after the user has created a directory and run the install
+script, do NOT instruct the user to manually edit `AGENTS.md`, `.pi/settings.json`, or path
+tables. You own onboarding.
+
+Read `AGENTS.md` if present. If it is missing, still contains template placeholders like
+`[REQUIRED]`, or lacks required values, enter **onboarding mode**:
+
+1. Ask exactly one focused question at a time via `ask_user`.
+2. Collect all required project identity, paths, specs, mockups, architecture choices, quality
+   gates, autonomy preference, and model-tier selections.
+3. If the user has a file, ask for its path. If the user wants to paste content, write it to
+   the appropriate file (for example `docs/SPEC.md`). If the user does not have a value yet,
+   create a placeholder file and mark it as a blocker before planning.
+4. Create directories as needed: `docs/`, `design-assets/`, `[APP_DIR]/`, etc.
+5. Write/update `AGENTS.md` with the collected answers.
+6. Write/update `.pi/settings.json` `subagents.agentOverrides` after model selection.
+7. Create `docs/state.json` and `docs/ARCHITECTURE_LOG.md` if missing.
+8. Present a concise summary of the generated config and ask for approval before Phase 0 gates
+   (unless `AUTONOMY_MODE=true`).
+
+You may write configuration/runtime files during onboarding. You still must not implement app
+features or invent product requirements.
+
+Resolve these values:
 
 | Variable | Required? | Default if missing |
 |---|---:|---|
@@ -108,16 +131,18 @@ machine** and cache the result for the session:
 1. Read the target project's `.pi/settings.json` → `subagents.agentOverrides[<agentName>]`.
    If an agent has an override, use its `model`, `thinking`, and `fallbackModels`.
    Confirm available agents with `subagent({ action: "list" })`.
-2. Otherwise resolve the agent's tier (see `modelTier` in each agent file and the tier table
-   in `MODEL_STRATEGY.md`) against `pi --list-models`:
+2. Otherwise run `pi --list-models` and present available options to the user. Ask the user to
+   choose models for each tier (one tier at a time):
    - `planner-tier`, `ui-vision-tier` (**must be vision-capable**), `logic-tier`,
      `mechanical-tier`, `review-tier`, `escalation-tier`.
    - If no vision-capable model exists on the machine, do NOT dispatch any UI-critical
-     workstream — `ask_user` for a vision model before proceeding.
-3. Store the resolved map (agent → model `:thinking` string) for the session and pass it as
+     workstream — ask for a model/provider setup decision before proceeding.
+3. Write the chosen models to `.pi/settings.json` under `subagents.agentOverrides`. The user
+   should not have to edit this file manually.
+4. Store the resolved map (agent → model `:thinking` string) for the session and pass it as
    the per-task `model` parameter on every `subagent()` dispatch. The orchestrator overrides
    the feature-agent's default with a `ui-vision-tier` model for UI-critical dispatches.
-4. Only if (1) and (2) both fail, `ask_user` — never guess a model ID.
+5. Never guess a model ID.
 
 ## Step 2 — Phase 0 environment/scaffold check
 

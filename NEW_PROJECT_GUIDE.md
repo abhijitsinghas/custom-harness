@@ -1,236 +1,22 @@
-# New Project Guide — Build a Flutter Android App with the Custom Harness
+# New Project Guide — Minimal Manual Setup
 
-> Step-by-step procedure for using this harness to create a new Flutter-based Android app from specs and mockups.
->
-> Goal: project-agnostic, reliability-first, autonomous execution with plan approval, deterministic design-token extraction, native `pi-subagents` acceptance contracts, visual validation, golden baselines, architecture checks, review, and final build gates.
-
----
-
-## 0. What this harness expects
-
-For best results, prepare these inputs before starting:
-
-| Input | Required? | Notes |
-|---|---:|---|
-| Product/spec document | Yes | Functional requirements, user flows, edge cases, data model expectations |
-| UI mockups | Strongly recommended | Stitch export preferred: each screen folder should contain `screen.png` + `code.html` |
-| Design system notes | Optional | Human design doc; Stitch HTML remains the visual source of truth |
-| Target app folder | Yes | Can be empty; harness can scaffold Flutter app after approval |
-| Android package ID | For Android build/smoke | Example: `com.example.myapp` |
-| Model configuration | Yes | Concrete model IDs must exist on the target machine (`pi --list-models`) |
-| Git repo | Yes | Harness uses git + `docs/state.json` for recovery/resume |
+> Desired flow: the user creates a target directory and runs the harness installer. After that,
+> the AI/orchestrator asks questions, writes configuration, prepares paths, generates design
+> tokens, plans workstreams, and runs the reliability pipeline.
 
 ---
 
-## 1. Create or choose the target project folder
+## User responsibilities
 
-Create a fresh project folder anywhere outside this harness repo:
+The user should manually do only this:
 
 ```bash
 mkdir -p ~/Development/Projects/my_flutter_app
 cd ~/Development/Projects/my_flutter_app
-```
-
-If you already have a project, use that folder instead.
-
-Initialize git if it is not already initialized:
-
-```bash
-git init
-```
-
-The orchestrator can also initialize git during Phase 0, but doing it up front is cleaner.
-
----
-
-## 2. Install the harness into the target project
-
-From the target project directory:
-
-```bash
 bash /path/to/custom-harness/install.sh
 ```
 
-Example:
-
-```bash
-cd ~/Development/Projects/my_flutter_app
-bash ~/Development/Projects/pi-workspace/research/custom-harness/install.sh
-```
-
-After install, the target project should contain:
-
-```text
-.pi/
-  agents/
-  skills/
-  tools/
-    extract_design_tokens.js
-    arch_check.sh
-    golden_check.sh
-  settings.json
-AGENTS.md
-FRAMEWORK.md
-MODEL_STRATEGY.md
-STITCH_PIPELINE.md
-design-tokens-schema.md
-```
-
-Run a quick check:
-
-```bash
-ls .pi/agents .pi/skills .pi/tools
-```
-
----
-
-## 3. Add project inputs
-
-Recommended target layout:
-
-```text
-my_flutter_app/
-├── docs/
-│   ├── SPEC.md
-│   ├── user-stories.md                 # optional
-│   ├── design.md                       # optional
-│   └── design_tokens.json              # generated in Phase 0
-├── design-assets/
-│   └── Stitch-Mockup/
-│       ├── 01-welcome/
-│       │   ├── screen.png
-│       │   └── code.html
-│       ├── 02-home/
-│       │   ├── screen.png
-│       │   └── code.html
-│       └── ...
-└── app/                                # Flutter app dir, can be created by harness
-```
-
-If you do not have Stitch mockups, you can still run the harness, but visual validation and design-token extraction will be weaker.
-
----
-
-## 4. Configure `AGENTS.md`
-
-Open the installed `AGENTS.md` in the target project and fill in all required values.
-
-Minimum required fields:
-
-```markdown
-## Project Identity
-| Project name | My Flutter App |
-| App type | Flutter app |
-| Primary platform | Android |
-| Package/application id | com.example.myapp |
-| Organization for `flutter create --org` | com.example |
-
-## Project Paths
-| Product spec | docs/SPEC.md |
-| Mockups/screenshots | design-assets/Stitch-Mockup/ |
-| Design tokens (JSON) | docs/design_tokens.json |
-| Stitch HTML mockups | design-assets/Stitch-Mockup/ |
-| Flutter app directory | app/ |
-| Plan output | docs/plan.md |
-| Review output | docs/review.md |
-| Integration test directory | app/integration_test/ |
-| Golden test source | app/test_goldens/ |
-| Golden test images | app/test/goldens/ |
-| Architecture decision log | docs/ARCHITECTURE_LOG.md |
-| Orchestrator state file | docs/state.json |
-| Harness tools directory | .pi/tools/ |
-```
-
-Also confirm:
-
-- state management choice (Riverpod / Bloc / Provider / etc.)
-- routing package (for example, `go_router`)
-- persistence/API packages
-- test strategy
-- autonomy mode (`Enabled` or `Disabled`)
-
----
-
-## 5. Configure concrete model IDs
-
-The harness is model-agnostic. It uses capability tiers, but the target project must map those tiers to real model IDs available on your machine.
-
-List models:
-
-```bash
-pi --list-models
-```
-
-Then edit `.pi/settings.json` in the target project. Example shape:
-
-```json
-{
-  "packages": [
-    "npm:pi-ask-user",
-    "npm:@plannotator/pi-extension",
-    "npm:intercom",
-    "npm:pi-intercom",
-    "npm:pi-subagents"
-  ],
-  "subagents": {
-    "agentOverrides": {
-      "planner": {
-        "model": "[planner-tier-model-id]",
-        "thinking": "high"
-      },
-      "feature-agent": {
-        "model": "[logic-tier-model-id]",
-        "thinking": "xhigh",
-        "fallbackModels": ["[mechanical-tier-model-id]"]
-      },
-      "visual-validator": {
-        "model": "[ui-vision-tier-model-id]",
-        "thinking": "high"
-      },
-      "architect": {
-        "model": "[mechanical-tier-model-id]",
-        "thinking": "high"
-      },
-      "reviewer": {
-        "model": "[review-tier-model-id]",
-        "thinking": "high"
-      }
-    }
-  }
-}
-```
-
-Important:
-
-- `visual-validator` and UI-critical feature work need a **vision-capable** model.
-- Use exact IDs from `pi --list-models`.
-- If unsure, start Pi and use:
-
-```text
-subagent({ action: "list" })
-```
-
-to confirm discovered agent names.
-
----
-
-## 6. Optional preflight checks
-
-Run these before starting Pi:
-
-```bash
-flutter doctor -v
-node .pi/tools/extract_design_tokens.js design-assets/Stitch-Mockup/ docs/design_tokens.json
-bash .pi/tools/arch_check.sh app before_workstream PRE docs/design_tokens.json docs/ARCHITECTURE_LOG.md
-```
-
-If the Flutter app does not exist yet, the `arch_check.sh` command can wait until after scaffolding.
-
----
-
-## 7. Start Pi and launch the orchestrator
-
-From the target project root:
+Then start Pi in the target project and launch onboarding:
 
 ```bash
 pi
@@ -242,227 +28,234 @@ In Pi:
 /name orchestrator
 ```
 
-Then send a start prompt like:
+Then:
 
 ```text
-Orchestrator, begin Phase 0 for this project.
-
-Runtime inputs:
-- Priority: reliability/quality first
-- App type: Flutter Android app
-- Spec: docs/SPEC.md
-- App directory: app/
-- Mockups: design-assets/Stitch-Mockup/ (contains screen.png + code.html per screen)
-- Design tokens: docs/design_tokens.json (auto-extract if missing/stale)
-- Plan output: docs/plan.md
-- Review output: docs/review.md
-- Golden test source: app/test_goldens/
-- Golden test images: app/test/goldens/
-- Architecture log: docs/ARCHITECTURE_LOG.md
-- State file: docs/state.json
-- Harness tools: .pi/tools/
-- Package id: com.example.myapp
-- Visual validation: enabled
-- Max visual iterations: 3
-- Autonomy mode: enabled
-Ask me only for missing high-risk decisions.
+Orchestrator, onboard this new Flutter Android project and begin Phase 0.
+Ask me one question at a time for every required value.
+Do not assume missing project details.
+Write AGENTS.md, .pi/settings.json, docs/state.json, and any needed docs/config files for me.
 ```
+
+After this point, **do not manually edit `AGENTS.md`, `.pi/settings.json`, or path tables unless
+the orchestrator explicitly asks you to review a proposed change.**
 
 ---
 
-## 8. Phase 0 — environment, scaffold, design tokens
+## What the orchestrator must do during onboarding
 
-The orchestrator should:
+The orchestrator owns setup after installation. It should ask focused questions, collect
+answers, and write the target project's runtime configuration.
 
-1. Resolve runtime config from `AGENTS.md` and the start prompt.
-2. Run `flutter doctor -v`.
-3. Initialize git if needed.
-4. Create or verify `docs/state.json`.
-5. Scaffold the Flutter app if `app/pubspec.yaml` does not exist and you approve/default it.
-6. Run deterministic design-token extraction:
+### 1. Identify the project
 
-```bash
-node .pi/tools/extract_design_tokens.js design-assets/Stitch-Mockup/ docs/design_tokens.json
+Ask one question at a time:
+
+1. Project name?
+2. Flutter app directory name? Default: `app/`.
+3. Android package/application id? Example: `com.example.myapp`.
+4. Organization for `flutter create --org`? Example: `com.example`.
+5. Is this a new app or existing Flutter app?
+
+If the user does not know a value, offer safe examples and explain the impact.
+
+### 2. Collect specs and requirements
+
+Ask how the spec will be provided:
+
+- path to an existing spec file
+- paste spec content now
+- create a placeholder `docs/SPEC.md` and pause until user fills/provides it
+
+If user pastes content, write it to `docs/SPEC.md`.
+
+Ask similarly for optional:
+
+- user stories
+- design system notes
+- build instructions
+- generated artifacts / existing code
+
+### 3. Collect mockups/design inputs
+
+Ask whether UI mockups exist:
+
+- Stitch export folder with `screen.png` + `code.html`
+- screenshots only
+- no mockups yet
+
+If Stitch exists, ask for the folder path and set:
+
+```text
+Mockups/screenshots = [that path]
+Stitch HTML mockups = [that path]
+Design tokens (JSON) = docs/design_tokens.json
 ```
 
-7. Run initial gates:
+If only screenshots exist, enable visual validation but skip deterministic token extraction.
+
+If no mockups exist, disable visual validation by default and note the quality tradeoff.
+
+### 4. Resolve model configuration
+
+The orchestrator must run or ask the user to run:
 
 ```bash
-cd app
+pi --list-models
+```
+
+Then ask the user to select concrete models for capability tiers, presenting available choices:
+
+| Tier | Needed for | Requirement |
+|---|---|---|
+| `planner-tier` | planning | strong reasoning |
+| `ui-vision-tier` | UI implementation + visual validation | vision/image-capable |
+| `logic-tier` | complex code/data/state | strong coding/reasoning |
+| `mechanical-tier` | checks/simple fixes/goldens | fast/cheap |
+| `review-tier` | review | careful reasoning |
+| `escalation-tier` | critical fallback | strongest available |
+
+The orchestrator writes `.pi/settings.json` `subagents.agentOverrides` for the selected models.
+The user should not edit model settings manually.
+
+### 5. Confirm architecture choices
+
+Ask for or propose defaults:
+
+- state management: Riverpod / Bloc / Provider / other
+- routing: go_router / Navigator / other
+- persistence: Drift / SQLite / Hive / Isar / none
+- remote API/auth: Firebase / Supabase / REST / GraphQL / none
+- code generation: build_runner / riverpod_generator / json_serializable / none
+- test approach: unit + widget + golden + integration/E2E
+
+If user is unsure, propose a sensible default and ask for approval.
+
+### 6. Write runtime config
+
+The orchestrator writes/updates `AGENTS.md` with all collected answers.
+
+It also creates directories as needed:
+
+```text
+docs/
+design-assets/        # if needed
+app/                  # if scaffolding is approved
+```
+
+And initializes:
+
+```text
+docs/state.json
+docs/ARCHITECTURE_LOG.md
+```
+
+### 7. Run Phase 0 gates
+
+The orchestrator then performs:
+
+```bash
+flutter doctor -v
+git init
+```
+
+If a Flutter app does not exist, it asks for approval/defaults and runs `flutter create`.
+
+If Stitch mockups exist, it runs deterministic extraction:
+
+```bash
+node .pi/tools/extract_design_tokens.js [STITCH_MOCKUPS_PATH] docs/design_tokens.json
+```
+
+Then initial Flutter gates:
+
+```bash
+cd [app_dir]
 flutter pub get
 flutter analyze
 flutter test
 ```
 
-If this phase fails, fix toolchain/config issues before continuing.
+### 8. Plan and approval
 
----
+The planner produces `docs/plan.md` with:
 
-## 9. Phase 1 — planner creates implementation plan
-
-The planner reads:
-
-- `AGENTS.md`
-- product spec
-- mockups/design tokens
-- existing code
-- architecture log (if any)
-
-It writes `docs/plan.md` with:
-
-- workstreams in dependency order
+- dependency-ordered workstreams
 - UI-critical annotations
 - design-token references
-- exact files to create/modify
-- tests expected
-- native `pi-subagents` acceptance contracts per workstream
+- native `pi-subagents` acceptance contracts
 - Spec → Test Traceability Matrix
+- expected files/tests/gates
 
-Review the plan carefully. In autonomy mode, you can allow the orchestrator to proceed after plan sanity checks; otherwise explicitly approve.
+The orchestrator summarizes the plan and asks for approval before implementation unless autonomy
+mode is explicitly enabled for plan approval.
 
----
+### 9. Implementation pipeline
 
-## 10. Phase 2 — implementation workstreams
+For each workstream, orchestrator runs:
 
-For each workstream, the orchestrator should:
+1. `.pi/tools/arch_check.sh` pre-check
+2. `feature-agent` with native acceptance contract
+3. acceptance verify commands (`flutter analyze`, targeted tests, goldens, integration tests)
+4. UI-critical visual loop when needed:
+   - `.pi/tools/golden_check.sh`
+   - visual-validator semantic diff
+   - feature-agent fixes only reported discrepancies
+5. `.pi/tools/arch_check.sh` post-check
+6. update `docs/state.json`
+7. git commit
 
-1. Run deterministic architecture scan:
+### 10. Review and final gate
 
-```bash
-bash .pi/tools/arch_check.sh app before_workstream Wxx docs/design_tokens.json docs/ARCHITECTURE_LOG.md
-```
-
-2. Dispatch `feature-agent` with:
-   - scoped `reads`
-   - concrete model resolved from `.pi/settings.json`
-   - native `acceptance` contract
-   - `output: file-only` where appropriate
-
-3. Feature-agent implements only that workstream and must satisfy the acceptance contract.
-
-4. For UI-critical workstreams:
-   - generate/update golden tests
-   - run deterministic golden pre-filter:
-
-```bash
-bash .pi/tools/golden_check.sh app app/test_goldens/<screen>_golden_test.dart
-```
-
-   - if needed, visual-validator performs semantic diff against Stitch `screen.png`
-   - feature-agent applies only discrepancy-report fixes
-   - final accepted golden is committed as baseline
-
-5. Run post-workstream architecture scan.
-6. Update `docs/state.json`.
-7. Commit successful workstream.
-
----
-
-## 11. Phase 3 — reviewer gate
-
-Reviewer checks:
+Reviewer verifies:
 
 - spec coverage
 - plan compliance
-- acceptance contract evidence
+- acceptance evidence
 - Spec → Test Traceability Matrix
 - golden coverage
 - design-token compliance
 - architecture log consistency
 - tests and integration/E2E coverage
 
-Expected output: `docs/review.md`.
-
-Verdicts:
-
-- `APPROVE` → final quality gate
-- `NEEDS FIXES` → orchestrator dispatches scoped repair workstreams
-
----
-
-## 12. Phase 4 — final quality gate
-
-Run project-specific commands. Flutter Android default:
+Final default gate:
 
 ```bash
-cd app
+cd [app_dir]
 flutter pub get
-# if code generation is configured:
-dart run build_runner build --delete-conflicting-outputs
+dart run build_runner build --delete-conflicting-outputs   # only if configured
 flutter analyze
 flutter test
 flutter test test_goldens/
-flutter test integration_test/   # if tests exist / emulator configured
+flutter test integration_test/                             # if configured
 flutter build apk --debug
 ```
 
-Optional device smoke:
-
-```bash
-adb install -r build/app/outputs/flutter-apk/app-debug.apk
-adb shell am start -n com.example.myapp/.MainActivity
-```
-
-Do not declare success if required gates fail or are skipped without an explicit reason recorded in `docs/review.md`.
-
 ---
 
-## 13. Resume / recovery
-
-The source of truth is:
-
-- `docs/state.json`
-- git commits
-- native `pi-subagents` run IDs
-
-If a session stops:
-
-1. Restart Pi in the target project.
-2. Start orchestrator.
-3. Ask:
+## The only prompt the user needs to remember
 
 ```text
-Resume from docs/state.json. Check subagent status and continue from the first non-passed workstream.
+Orchestrator, onboard this new Flutter Android project and begin Phase 0.
+Ask me one question at a time for every required value.
+Do not assume missing project details.
+Write AGENTS.md, .pi/settings.json, docs/state.json, and any needed docs/config files for me.
 ```
-
-The orchestrator should use:
-
-```text
-subagent({ action: "status" })
-subagent({ action: "resume", id: "<runId>" })
-```
-
-when applicable.
 
 ---
 
-## 14. Common pitfalls
+## What not to do manually
 
-| Problem | Fix |
-|---|---|
-| Model dispatch fails | Run `pi --list-models`; update `.pi/settings.json` `subagents.agentOverrides` |
-| Visual validator cannot compare images | Use a vision-capable model for `visual-validator` / `ui-vision-tier` |
-| Design tokens missing | Run `.pi/tools/extract_design_tokens.js` manually and inspect warnings |
-| Golden tests flaky | Load fonts/icons with `FontLoader`; set fixed viewport/devicePixelRatio; stub network images |
-| Integration tests cannot run | Configure Android emulator/device; mark integration verify with `allowFailure: true` only until emulator is available |
-| Agent edits too much | Ensure workstream file list is exact and acceptance `stopRules` include no scope creep |
-| Resume unclear | Inspect `docs/state.json`, git log, and `subagent({ action: "status" })` |
+Do **not** manually perform these unless the orchestrator asks you to review or confirm:
 
----
+- edit `AGENTS.md`
+- edit `.pi/settings.json`
+- create `docs/state.json`
+- generate `design_tokens.json`
+- decide model routing by hand
+- create the implementation plan by hand
+- run workstreams manually
+- update golden baselines manually
 
-## 15. Minimal checklist
-
-Before starting implementation, confirm:
-
-- [ ] `AGENTS.md` filled in
-- [ ] `.pi/settings.json` model overrides use real model IDs
-- [ ] `flutter doctor -v` passes for Android
-- [ ] spec is present
-- [ ] mockups are present, if visual fidelity is required
-- [ ] `docs/design_tokens.json` generated
-- [ ] `docs/plan.md` approved
-- [ ] every workstream has an acceptance contract
-- [ ] Spec → Test Traceability Matrix has no gaps
-- [ ] git repo is initialized
-
-Once all are checked, let the orchestrator proceed through workstreams.
+The harness is designed so the orchestrator asks questions, writes configuration, and records
+decisions for you.

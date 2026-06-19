@@ -77,23 +77,21 @@ Project-specific build guides, such as `THE_LITTLE_LIBRARY_BUILD_INSTRUCTIONS.md
 
 ## Required project setup after install
 
-1. Edit `AGENTS.md` in the target project.
-2. Fill in at minimum:
-   - project name
-   - app type
-   - app directory
-   - spec path
-   - plan output path
-   - review output path
-   - package/application id if mobile build/install gates are needed
-   - Stitch mockups path (for visual validation)
-   - Design tokens path (if using automated extraction)
-3. Confirm tech stack and architecture rules.
-4. Confirm quality gates.
-5. Place Stitch mockups (screen.png + code.html per screen) in `design-assets/`
-6. Run Phase 0 (or `node .pi/tools/extract_design_tokens.js [mockups] [docs/design_tokens.json]`) to generate `design_tokens.json` from Stitch HTML
+Do **not** manually edit `AGENTS.md` or `.pi/settings.json` for a new project. After install,
+start the orchestrator onboarding flow. The AI will ask one question at a time, collect the
+needed values, write `AGENTS.md`, write `.pi/settings.json` model overrides, create
+`docs/state.json`, and run Phase 0.
 
-If anything is missing, the orchestrator will ask at runtime.
+The only manual setup is:
+
+```bash
+mkdir -p /path/to/target-project
+cd /path/to/target-project
+bash /path/to/custom-harness/install.sh
+pi
+```
+
+Then use `/name orchestrator` and the onboarding prompt below.
 
 ---
 
@@ -108,20 +106,10 @@ In Pi:
 Then:
 
 ```text
-Orchestrator, begin Phase 0.
-Runtime inputs:
-- Priority: reliability/quality first
-- Spec: [path]
-- App directory: [path]
-- Mockups: [optional path — Stitch directory with screen.png + code.html]
-- Design system: [optional path]
-- Design tokens: [path to design_tokens.json or will auto-extract]
-- Generated artifacts: [optional path]
-- Plan output: [path]
-- Review output: [path]
-- Visual validation: enabled
-- Max visual iterations: 3
-Ask me for missing required information.
+Orchestrator, onboard this new Flutter Android project and begin Phase 0.
+Ask me one question at a time for every required value.
+Do not assume missing project details.
+Write AGENTS.md, .pi/settings.json, docs/state.json, and any needed docs/config files for me.
 ```
 
 ---

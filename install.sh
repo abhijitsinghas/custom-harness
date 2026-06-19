@@ -552,10 +552,10 @@ print_summary() {
   fi
 
   echo "  ${BOLD}Next steps:${NC}"
-  echo "    1. Edit AGENTS.md with your runtime project details"
-  echo "    2. Review MODEL_STRATEGY.md and run /models if you want overrides"
-  echo "    3. Run: ${CYAN}/name orchestrator${NC}"
-  echo "    4. Run: ${CYAN}Orchestrator, begin Phase 0.${NC}"
+  echo "    1. Start Pi in this project: ${CYAN}pi${NC}"
+  echo "    2. Run: ${CYAN}/name orchestrator${NC}"
+  echo "    3. Say: ${CYAN}Orchestrator, onboard this new Flutter Android project and begin Phase 0. Ask me one question at a time and write AGENTS.md, .pi/settings.json, and docs/state.json for me.${NC}"
+  echo "    4. Do not manually edit AGENTS.md or .pi/settings.json unless the orchestrator asks you to review a proposed change."
   echo ""
 }
 
