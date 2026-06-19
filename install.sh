@@ -360,13 +360,12 @@ install_custom_skills() {
     fi
 
     local dest="$target/.pi/skills/$skill"
-    if [ ! -d "$dest" ]; then
-      cp -r "$src" "$dest"
-      info "$skill"
-      copied=$((copied + 1))
-    else
-      info "$skill (exists — skipped)"
+    if [ -d "$dest" ]; then
+      rm -rf "$dest"
     fi
+    cp -r "$src" "$dest"
+    info "$skill"
+    copied=$((copied + 1))
   done
 
   echo "  → $copied installed"
