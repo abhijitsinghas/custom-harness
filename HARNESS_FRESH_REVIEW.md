@@ -125,10 +125,10 @@ core goal — **every spec function works reliably** — is under-served:
 Both skills describe a process but ship **no executable parser**. Phase 0 dispatches
 `flutter-dev.feature-agent` to improvise parsing of `<script id="tailwind-config">` every run →
 non-deterministic tokens. For a "robust" framework, this must be a real deterministic script
-shipped with the harness (e.g. `tools/extract_design_tokens.js` using `cheerio` /
+shipped with the harness (e.g. `harness-tools/extract_design_tokens.js` using `cheerio` /
 `node-html-parser`) that reproducibly emits `design_tokens.json`. Same critique applies to the
 architecture-consistency-checker: the grep commands are deterministic but should be a script
-(`tools/arch_check.sh`) the architect runs, not re-derived each invocation.
+(`harness-tools/arch_check.sh`) the architect runs, not re-derived each invocation.
 
 ### GAP-6 — Visual validation loop is fragile  *(MEDIUM)*
 
@@ -240,8 +240,8 @@ referenced in agent frontmatter exists, else warn.
 
 ### P2 — Robustness
 
-7. **Ship deterministic scripts:** `tools/extract_design_tokens.js` (cheerio) and
-   `tools/arch_check.sh`. Skills invoke the scripts instead of improvising.
+7. **Ship deterministic scripts:** `harness-tools/extract_design_tokens.js` (cheerio) and
+   `harness-tools/arch_check.sh`. Skills invoke the scripts instead of improvising.
 8. **Harden visual validation:** deterministic pixel-diff pre-filter (Flutter golden `_isolated`
    diff + `pixelmatch` threshold) **then** vision semantic diff; specify golden viewport
    matching the mockup aspect ratio; document font/icon parity (`FontLoader`, `ahem`/Roboto,

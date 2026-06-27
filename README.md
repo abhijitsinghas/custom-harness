@@ -59,7 +59,7 @@ The installer is idempotent and skips existing agents/docs unless specifically d
 │   │   ├── flutter-add-integration-test/    # enhanced
 │   │   ├── flutter-apply-architecture-best-practices/ # enhanced
 │   │   └── official Dart/Flutter skills     # installed per-project via npx
-│   ├── tools/
+│   ├── harness-tools/
 │   │   ├── extract_design_tokens.js        # deterministic Stitch HTML → design_tokens.json
 │   │   ├── arch_check.sh                   # deterministic architecture consistency scanner
 │   │   └── golden_check.sh                 # deterministic golden regression pre-filter
@@ -174,7 +174,7 @@ cp -R ~/Downloads/home-library/Stitch-Mockup design-assets/
 bash /Users/abhijitsingh/Development/Projects/pi-workspace/research/custom-harness/install.sh
 ```
 
-After install, the target folder contains `.pi/agents`, `.pi/skills`, `.pi/tools`, `AGENTS.md`, and framework docs.
+After install, the target folder contains `.pi/agents`, `.pi/skills`, `.pi/harness-tools`, `AGENTS.md`, and framework docs.
 
 ### 4. Start Pi
 
@@ -262,7 +262,7 @@ It should also run Phase 0 checks such as:
 
 ```bash
 flutter doctor -v
-node .pi/tools/extract_design_tokens.js design-assets/Stitch-Mockup docs/design_tokens.json
+node .pi/harness-tools/extract_design_tokens.js design-assets/Stitch-Mockup docs/design_tokens.json
 ```
 
 If the Flutter app does not exist yet, it should ask permission/defaults and run something like:

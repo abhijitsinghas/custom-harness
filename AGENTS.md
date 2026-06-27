@@ -45,7 +45,7 @@ All paths are relative to the project root unless absolute.
 | Golden test images | `[app_dir]/test/goldens/` | Golden PNG baselines |
 | Architecture decision log | `docs/ARCHITECTURE_LOG.md` | For consistency across workstreams |
 | Orchestrator state file | `docs/state.json` | Resume source of truth |
-| Harness tools directory | `.pi/tools/` | Deterministic scripts (`extract_design_tokens.js`, `arch_check.sh`, `golden_check.sh`) |
+| Harness tools directory | `.pi/harness-tools/` | Deterministic scripts (`extract_design_tokens.js`, `arch_check.sh`, `golden_check.sh`) |
 | Build instructions | `[optional path/to/build-instructions.md]` | No |
 
 ---

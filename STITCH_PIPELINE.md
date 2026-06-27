@@ -105,7 +105,7 @@ Recommended layout:
 During Phase 0, the orchestrator runs the shipped deterministic script first:
 
 ```bash
-node .pi/tools/extract_design_tokens.js design-assets/Stitch-Mockup/ docs/design_tokens.json
+node .pi/harness-tools/extract_design_tokens.js design-assets/Stitch-Mockup/ docs/design_tokens.json
 ```
 
 The `design-token-extractor` skill may then semantically enhance the generated JSON (component naming, warnings, design-doc cross-reference), but it should not improvise the base parsing if the script is available.

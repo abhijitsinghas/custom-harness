@@ -11,7 +11,7 @@
 #   - Our enhanced skill versions (override same-named official ones)
 #   - Our custom-only skills (orchestrator, brainstorming, writing-plans, grill-me)
 #   - Framework docs (FRAMEWORK.md, AGENTS.md template, MODEL_STRATEGY.md, STITCH_PIPELINE.md, design-tokens-schema.md)
-#   - Deterministic helper tools (.pi/tools/extract_design_tokens.js, arch_check.sh, golden_check.sh)
+#   - Deterministic helper tools (.pi/harness-tools/extract_design_tokens.js, arch_check.sh, golden_check.sh)
 #   - Settings for pi npm packages
 #
 # Generic — works with ANY project. Not tied to Flutter specifically.
@@ -440,18 +440,18 @@ install_tools() {
 
   header "Installing deterministic helper tools"
 
-  mkdir -p "$target/.pi/tools"
+  mkdir -p "$target/.pi/harness-tools"
   local copied=0
-  if [ -d "$source/tools" ]; then
-    for tool in "$source/tools"/*; do
+  if [ -d "$source/harness-tools" ]; then
+    for tool in "$source/harness-tools"/*; do
       [ -f "$tool" ] || continue
-      cp "$tool" "$target/.pi/tools/$(basename "$tool")"
-      chmod +x "$target/.pi/tools/$(basename "$tool")" 2>/dev/null || true
+      cp "$tool" "$target/.pi/harness-tools/$(basename "$tool")"
+      chmod +x "$target/.pi/harness-tools/$(basename "$tool")" 2>/dev/null || true
       info "$(basename "$tool")"
       copied=$((copied + 1))
     done
   else
-    warn "No tools/ directory found in source — deterministic scripts unavailable"
+    warn "No harness-tools/ directory found in source — deterministic scripts unavailable"
   fi
   echo "  → $copied tools installed"
 }
@@ -539,7 +539,7 @@ print_summary() {
   echo "  ${BOLD}Agents:${NC}         $agent_count  (.pi/agents/)"
   echo "  ${BOLD}Skills:${NC}         $skill_count  (.pi/skills/)"
   echo "  ${BOLD}Docs:${NC}           FRAMEWORK.md, AGENTS.md, MODEL_STRATEGY.md"
-  echo "  ${BOLD}Tools:${NC}          .pi/tools/ (extract_design_tokens.js, arch_check.sh, golden_check.sh)"
+  echo "  ${BOLD}Tools:${NC}          .pi/harness-tools/ (extract_design_tokens.js, arch_check.sh, golden_check.sh)"
   echo "  ${BOLD}Settings:${NC}       .pi/settings.json"
   echo ""
 
@@ -693,7 +693,7 @@ done
 
 # Tools
 for tool in extract_design_tokens.js arch_check.sh golden_check.sh; do
-  if [ -f "$TARGET/.pi/tools/$tool" ]; then
+  if [ -f "$TARGET/.pi/harness-tools/$tool" ]; then
     ok "Tool: $tool"
   else
     warn "Missing tool: $tool"

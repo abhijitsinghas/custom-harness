@@ -368,7 +368,7 @@ const output = {
   source: "stitch-html",
   source_directory: path.resolve(root),
   generated_at: new Date().toISOString(),
-  parser: "tools/extract_design_tokens.js",
+  parser: "harness-tools/extract_design_tokens.js",
   screens_extracted: screens.length,
   screens_with_config: screensWithConfig,
   screens_with_dark: screensWithDark,

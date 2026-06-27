@@ -226,7 +226,7 @@ If a Flutter app does not exist, it asks for approval/defaults and runs `flutter
 If Stitch mockups exist, it runs deterministic extraction:
 
 ```bash
-node .pi/tools/extract_design_tokens.js [STITCH_MOCKUPS_PATH] docs/design_tokens.json
+node .pi/harness-tools/extract_design_tokens.js [STITCH_MOCKUPS_PATH] docs/design_tokens.json
 ```
 
 Then initial Flutter gates:
@@ -256,14 +256,14 @@ mode is explicitly enabled for plan approval.
 
 For each workstream, orchestrator runs:
 
-1. `.pi/tools/arch_check.sh` pre-check
+1. `.pi/harness-tools/arch_check.sh` pre-check
 2. `feature-agent` with native acceptance contract
 3. acceptance verify commands (`flutter analyze`, targeted tests, goldens, integration tests)
 4. UI-critical visual loop when needed:
-   - `.pi/tools/golden_check.sh`
+   - `.pi/harness-tools/golden_check.sh`
    - visual-validator semantic diff
    - feature-agent fixes only reported discrepancies
-5. `.pi/tools/arch_check.sh` post-check
+5. `.pi/harness-tools/arch_check.sh` post-check
 6. update `docs/state.json`
 7. git commit
 

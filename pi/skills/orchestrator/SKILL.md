@@ -41,8 +41,8 @@ Final quality gate: analyze + tests + goldens + integration + build/install/smok
 
 ## Step 0 — Resume and recovery
 
-`HARNESS_TOOLS` = the harness `tools/` directory shipped by the installer (default
-`<project>/.pi/tools`, or wherever the harness was installed; resolve at Phase 0).
+`HARNESS_TOOLS` = the harness `harness-tools/` directory shipped by the installer (default
+`<project>/.pi/harness-tools`, or wherever the harness was installed; resolve at Phase 0).
 
 Run on every orchestrator session start.
 
